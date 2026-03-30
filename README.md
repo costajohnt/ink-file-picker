@@ -258,7 +258,7 @@ import {
 
 - `useFilePickerState(props)` -- manages all state and actions (reducer, focus, filtering, navigation)
 - `useFilePicker({ state, onSelect, onCancel })` -- wires keyboard input to the state API
-- `useDirectoryReader(path, dispatch)` -- reads directory contents and dispatches results
+- `useDirectoryReader({ mode, currentPath, dispatch })` -- reads directory contents when `mode` is `'loading'` and dispatches results
 
 ## Known Limitations
 

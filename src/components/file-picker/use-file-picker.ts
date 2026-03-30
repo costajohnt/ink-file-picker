@@ -142,12 +142,13 @@ export function useFilePicker({
         return;
       }
 
-      // Space: Toggle selection (multi-select) or treat as filter char
+      // Space: Toggle selection in multi-select browsing, otherwise treat as filter char
       if (input === ' ') {
         if (state.multiSelect && state.mode === 'browsing') {
           state.toggleSelection();
+          return;
         }
-        return;
+        // Fall through to filter handling below so spaces can appear in filter text
       }
 
       // Slash: Activate filter mode
