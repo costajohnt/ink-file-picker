@@ -4,11 +4,11 @@
 [![CI](https://github.com/costajohnt/ink-file-picker/actions/workflows/ci.yml/badge.svg)](https://github.com/costajohnt/ink-file-picker/actions/workflows/ci.yml)
 [![license](https://img.shields.io/npm/l/ink-file-picker.svg)](https://github.com/costajohnt/ink-file-picker/blob/master/LICENSE)
 
-A filesystem navigation and file selection component for [Ink](https://github.com/vadimdemedes/ink) -- the React renderer for CLIs.
-
 <p align="center">
-  <img src="media/demo.gif" alt="ink-file-picker demo" width="600" />
+  <img src="media/demo.gif" alt="ink-file-picker demo" width="600">
 </p>
+
+A filesystem navigation and file selection component for [Ink](https://github.com/vadimdemedes/ink) -- the React renderer for CLIs.
 
 ## Features
 
@@ -282,7 +282,7 @@ npm test
 
 ## Changelog
 
-This project follows [Semantic Versioning](https://semver.org/). See [GitHub Releases](https://github.com/costajohnt/ink-file-picker/releases) for the changelog.
+See [GitHub Releases](https://github.com/costajohnt/ink-file-picker/releases).
 
 ## License
 
