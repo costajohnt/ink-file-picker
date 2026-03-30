@@ -30,8 +30,6 @@ export type EntryId = string;
 
 // --- Selection Types ---
 
-export type SelectionMode = 'single' | 'multi';
-
 export type FileTypeFilter = 'files' | 'directories' | 'all';
 
 // --- Filter Types ---
@@ -74,7 +72,7 @@ export type FilePickerProps = {
   readonly showHidden?: boolean;
 
   /**
-   * Show file size and modification date columns.
+   * Show file size column.
    * @default false
    */
   readonly showDetails?: boolean;
@@ -124,6 +122,12 @@ export type FilePickerProps = {
    * @default false
    */
   readonly isDisabled?: boolean;
+
+  /**
+   * Custom theme overrides. Merged with the default theme.
+   * Allows customizing styles (colors, layout) and config (icons, separators).
+   */
+  readonly theme?: Partial<FilePickerTheme>;
 };
 
 // --- Theme Types ---

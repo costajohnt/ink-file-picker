@@ -154,6 +154,43 @@ describe('reducer', () => {
       expect(names).not.toContain('style.css');
     });
 
+    it('applies glob filter to directories when fileTypes is directories', () => {
+      const state = makeLoadingState({ filter: 's*', fileTypes: 'directories' });
+      const entries = [
+        makeEntry('src', 'directory'),
+        makeEntry('scripts', 'directory'),
+        makeEntry('dist', 'directory'),
+        makeEntry('index.ts'),
+      ];
+
+      const next = reducer(state, { type: 'load-directory-success', entries });
+
+      const names = next.allEntries.map(e => e.name);
+      expect(names).toContain('src');
+      expect(names).toContain('scripts');
+      expect(names).not.toContain('dist');
+      expect(names).not.toContain('index.ts');
+    });
+
+    it('applies function filter to directories when fileTypes is directories', () => {
+      const state = makeLoadingState({
+        filter: (entry: FileEntry) => entry.name.startsWith('s'),
+        fileTypes: 'directories',
+      });
+      const entries = [
+        makeEntry('src', 'directory'),
+        makeEntry('dist', 'directory'),
+        makeEntry('index.ts'),
+      ];
+
+      const next = reducer(state, { type: 'load-directory-success', entries });
+
+      const names = next.allEntries.map(e => e.name);
+      expect(names).toContain('src');
+      expect(names).not.toContain('dist');
+      expect(names).not.toContain('index.ts');
+    });
+
     it('sets focusedEntryName to first entry', () => {
       const state = makeLoadingState();
       const entries = [makeEntry('alpha.ts'), makeEntry('beta.ts')];

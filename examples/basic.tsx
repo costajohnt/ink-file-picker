@@ -1,6 +1,6 @@
 import React from 'react';
 import { render } from 'ink';
-import { FilePicker } from '../src/index.js';
+import { FilePicker } from 'ink-file-picker';
 
 function App() {
   return (

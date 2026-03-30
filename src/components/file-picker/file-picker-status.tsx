@@ -9,15 +9,16 @@ type FilePickerStatusProps = {
   styles: FilePickerThemeStyles;
 };
 
-function useSpinner(): string {
+function useSpinner(isActive: boolean): string {
   const [frame, setFrame] = useState(0);
 
   useEffect(() => {
+    if (!isActive) return;
     const timer = setInterval(() => {
       setFrame(prev => (prev + 1) % SPINNER_FRAMES.length);
     }, SPINNER_INTERVAL);
     return () => clearInterval(timer);
-  }, []);
+  }, [isActive]);
 
   return SPINNER_FRAMES[frame]!;
 }
@@ -27,7 +28,7 @@ export function FilePickerStatus({
   message,
   styles,
 }: FilePickerStatusProps) {
-  const spinnerChar = useSpinner();
+  const spinnerChar = useSpinner(type === 'loading');
 
   if (type === 'loading') {
     return (

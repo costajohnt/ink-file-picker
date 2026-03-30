@@ -86,16 +86,23 @@ function applyStaticFilters(
   }
 
   // 3. User-provided filter
+  // Directories (and symlinks-to-directories) are exempt from user filters so
+  // they remain navigable, UNLESS fileTypes is 'directories' (then the filter
+  // should apply to them too).
   if (state.filter) {
+    const exemptDirs = state.fileTypes !== 'directories';
+    const isDirLike = (e: FileEntry) =>
+      e.kind === 'directory' || (e.kind === 'symlink' && e.symlinkTargetKind === 'directory');
+
     if (typeof state.filter === 'string') {
       const isMatch = picomatch(state.filter);
       result = result.filter(e =>
-        e.kind === 'directory' || isMatch(e.name)
+        (exemptDirs && isDirLike(e)) || isMatch(e.name)
       );
     } else {
       const fn = state.filter;
       result = result.filter(e =>
-        e.kind === 'directory' || fn(e)
+        (exemptDirs && isDirLike(e)) || fn(e)
       );
     }
   }
@@ -145,7 +152,7 @@ export function reducer(state: FilePickerState, action: FilePickerAction): FileP
       };
 
     case 'navigate-into-directory': {
-      const entry = state.filteredEntries.find(e => e.name === action.name);
+      const entry = state.entryMap.get(action.name);
       if (!entry) return state;
 
       // Allow navigating into directories or symlinks that point to directories
@@ -168,15 +175,19 @@ export function reducer(state: FilePickerState, action: FilePickerAction): FileP
     }
 
     case 'navigate-to-parent': {
-      const parentPath = dirname(state.currentPath);
-      if (parentPath === state.currentPath) {
+      // Pop from the back-stack if available (fixes symlink back-navigation),
+      // otherwise fall back to dirname.
+      const history = [...state.pathHistory];
+      const popped = history.pop();
+      const targetPath = popped ?? dirname(state.currentPath);
+      if (targetPath === state.currentPath) {
         return state;
       }
       return {
         ...state,
         mode: 'loading',
-        currentPath: parentPath,
-        pathHistory: [...state.pathHistory, state.currentPath],
+        currentPath: targetPath,
+        pathHistory: popped !== undefined ? history : state.pathHistory,
         filterText: '',
         selectedPaths: new Set<string>(),
       };
@@ -254,7 +265,7 @@ export function reducer(state: FilePickerState, action: FilePickerAction): FileP
 
     case 'toggle-selection': {
       if (!state.multiSelect || !state.focusedEntryName) return state;
-      const entry = state.filteredEntries.find(e => e.name === state.focusedEntryName);
+      const entry = state.entryMap.get(state.focusedEntryName);
       if (!entry) return state;
 
       // Determine effective kind for symlinks
@@ -275,7 +286,7 @@ export function reducer(state: FilePickerState, action: FilePickerAction): FileP
 
     case 'select-focused-entry': {
       if (!state.focusedEntryName) return state;
-      const entry = state.filteredEntries.find(e => e.name === state.focusedEntryName);
+      const entry = state.entryMap.get(state.focusedEntryName);
       if (!entry) return state;
 
       const isNavigable = entry.kind === 'directory' ||
@@ -479,8 +490,9 @@ export function useFilePickerState(props: FilePickerProps): FilePickerStateAPI {
   }, [state.filteredEntries, state.visibleFromIndex, state.visibleToIndex]);
 
   const getFocusedEntry = useCallback((): FileEntry | undefined => {
-    return state.filteredEntries.find(e => e.name === state.focusedEntryName);
-  }, [state.filteredEntries, state.focusedEntryName]);
+    if (!state.focusedEntryName) return undefined;
+    return state.entryMap.get(state.focusedEntryName);
+  }, [state.entryMap, state.focusedEntryName]);
 
   return {
     mode: state.mode,

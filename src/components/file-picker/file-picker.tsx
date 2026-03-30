@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import { Box, Text } from 'ink';
 import { useFilePickerState } from './use-file-picker-state.js';
 import { useFilePicker } from './use-file-picker.js';
@@ -8,7 +8,18 @@ import { FilePickerHeader } from './file-picker-header.js';
 import { FilePickerFooter } from './file-picker-footer.js';
 import { FilePickerStatus } from './file-picker-status.js';
 import defaultTheme from '../../theme.js';
-import type { FilePickerProps } from '../../types.js';
+import type { FilePickerProps, FilePickerTheme } from '../../types.js';
+
+function mergeTheme(
+  base: FilePickerTheme,
+  overrides?: Partial<FilePickerTheme>,
+): FilePickerTheme {
+  if (!overrides) return base;
+  return {
+    styles: { ...base.styles, ...overrides.styles },
+    config: { ...base.config, ...overrides.config },
+  };
+}
 
 export function FilePicker(props: FilePickerProps) {
   const {
@@ -18,6 +29,7 @@ export function FilePicker(props: FilePickerProps) {
     onDirectoryChange,
     showDetails = false,
     multiSelect = false,
+    theme: themeOverrides,
   } = props;
 
   const state = useFilePickerState(props);
@@ -28,13 +40,20 @@ export function FilePicker(props: FilePickerProps) {
     dispatch: state.dispatch,
   });
 
+  // Only fire onDirectoryChange when currentPath actually changes, not on mode transitions
+  const prevPathRef = useRef(state.currentPath);
   useEffect(() => {
-    if (state.mode === 'browsing') {
+    if (state.currentPath !== prevPathRef.current) {
+      prevPathRef.current = state.currentPath;
       onDirectoryChange?.(state.currentPath);
     }
-  }, [state.currentPath, state.mode, onDirectoryChange]);
+  }, [state.currentPath, onDirectoryChange]);
 
-  const { styles, config } = defaultTheme;
+  const theme = useMemo(
+    () => mergeTheme(defaultTheme, themeOverrides),
+    [themeOverrides],
+  );
+  const { styles, config } = theme;
 
   return (
     <Box {...styles.container()}>
@@ -71,20 +90,28 @@ export function FilePicker(props: FilePickerProps) {
                 : 'Empty directory'}
             </Text>
           ) : (
-            state.visibleEntries.map(entry => (
-              <FilePickerEntry
-                key={entry.name}
-                entry={entry}
-                isFocused={
-                  !isDisabled && state.focusedEntryName === entry.name
-                }
-                isSelected={state.selectedPaths.has(entry.path)}
-                showDetails={showDetails}
-                multiSelect={multiSelect}
-                config={config}
-                styles={styles}
-              />
-            ))
+            <>
+              {state.visibleFromIndex > 0 && (
+                <Text dimColor>  {state.visibleFromIndex} more above</Text>
+              )}
+              {state.visibleEntries.map(entry => (
+                <FilePickerEntry
+                  key={entry.name}
+                  entry={entry}
+                  isFocused={
+                    !isDisabled && state.focusedEntryName === entry.name
+                  }
+                  isSelected={state.selectedPaths.has(entry.path)}
+                  showDetails={showDetails}
+                  multiSelect={multiSelect}
+                  config={config}
+                  styles={styles}
+                />
+              ))}
+              {state.visibleToIndex < state.filteredEntries.length && (
+                <Text dimColor>  {state.filteredEntries.length - state.visibleToIndex} more below</Text>
+              )}
+            </>
           )}
         </>
       )}

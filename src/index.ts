@@ -7,7 +7,6 @@ export type {
   FileEntry,
   EntryKind,
   FileTypeFilter,
-  SelectionMode,
   EntryFilter,
   OnSelectCallback,
   OnCancelCallback,

@@ -3,6 +3,24 @@
   "version": "0.1.0",
   "description": "Filesystem navigation and file selection component for Ink",
   "license": "MIT",
+  "author": "John Costa",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/costajohnt/ink-file-picker"
+  },
+  "homepage": "https://github.com/costajohnt/ink-file-picker#readme",
+  "bugs": "https://github.com/costajohnt/ink-file-picker/issues",
+  "keywords": [
+    "ink",
+    "cli",
+    "file",
+    "picker",
+    "browser",
+    "terminal",
+    "react",
+    "tui",
+    "filesystem"
+  ],
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",

@@ -1,17 +1,22 @@
 # ink-file-picker
 
+[![npm version](https://img.shields.io/npm/v/ink-file-picker.svg)](https://www.npmjs.com/package/ink-file-picker)
+[![CI](https://github.com/costajohnt/ink-file-picker/actions/workflows/ci.yml/badge.svg)](https://github.com/costajohnt/ink-file-picker/actions/workflows/ci.yml)
+[![license](https://img.shields.io/npm/l/ink-file-picker.svg)](https://github.com/costajohnt/ink-file-picker/blob/master/LICENSE)
+
 A filesystem navigation and file selection component for [Ink](https://github.com/vadimdemedes/ink) -- the React renderer for CLIs.
 
 ## Features
 
 - Directory navigation with breadcrumb path display
-- File details (size and modification date)
+- File details (file size)
 - Single and multi-select modes
 - Type filtering (files only, directories only, or all)
 - Glob pattern and predicate function filters
-- Virtual scrolling for large directories
-- Symlink support with target resolution
+- Virtual scrolling for large directories with scroll indicators
+- Symlink support with target resolution and correct back-navigation
 - Type-ahead filtering to quickly find entries
+- Customizable theme (colors, icons, layout)
 - Keyboard-driven with intuitive shortcuts
 
 ## Install
@@ -49,17 +54,18 @@ function App() {
 render(<App />);
 ```
 
-## Props API
+## Props
 
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
 | `initialPath` | `string` | `process.cwd()` | Starting directory path |
 | `filter` | `string \| (entry: FileEntry) => boolean` | `undefined` | Glob pattern or predicate function to filter visible entries. Glob is matched against entry names. Directories are always shown for navigation unless `fileTypes` is `'directories'`. |
 | `showHidden` | `boolean` | `false` | Show hidden files (dotfiles) |
-| `showDetails` | `boolean` | `false` | Show file size and modification date columns |
+| `showDetails` | `boolean` | `false` | Show file size column |
 | `multiSelect` | `boolean` | `false` | Enable multi-select mode (Space to toggle, Enter to confirm) |
 | `fileTypes` | `'files' \| 'directories' \| 'all'` | `'all'` | Which entry types to show and allow selection of |
 | `maxHeight` | `number` | `10` | Maximum number of entries visible at once (virtual scrolling window) |
+| `theme` | `Partial<FilePickerTheme>` | `undefined` | Custom theme overrides merged with defaults (see [Theme Customization](#theme-customization)) |
 | `onSelect` | `(paths: string[]) => void` | `undefined` | Called when selection is confirmed. Single-select returns a 1-element array. Multi-select returns all selected paths. |
 | `onCancel` | `() => void` | `undefined` | Called when the user presses Escape (outside of filter mode) |
 | `onDirectoryChange` | `(path: string) => void` | `undefined` | Called whenever the current directory changes |
@@ -70,6 +76,8 @@ render(<App />);
 | Key | Action |
 |-----|--------|
 | Up / Down | Move focus between entries |
+| Home | Jump to first entry |
+| End | Jump to last entry |
 | Enter | Open focused directory, or select focused file |
 | Right Arrow | Open focused directory |
 | Left Arrow | Navigate to parent directory |
@@ -79,6 +87,10 @@ render(<App />);
 | `/` | Activate filter mode |
 | Any printable character | Auto-enter filter mode and start typing |
 | `r` (in error mode) | Retry reading the current directory |
+
+## Scroll Indicators
+
+When virtual scrolling is active and there are entries above or below the visible window, the component displays indicators like "3 more above" and "12 more below" so users know there is additional content to scroll through.
 
 ## Filtering
 
@@ -98,7 +110,7 @@ You can also provide a `filter` prop for persistent filtering:
 <FilePicker filter={(entry) => entry.size > 1024} />
 ```
 
-In both cases, directories are always shown so you can still navigate into them.
+In both cases, directories (and symlinks to directories) are always shown so you can still navigate into them.
 
 ## Multi-Select Mode
 
@@ -135,11 +147,48 @@ Symlinks are handled correctly: a symlink pointing to a directory is treated as 
 
 ## Show Details
 
-When `showDetails` is enabled, each entry displays its file size (human-readable) and last modification date alongside the name:
+When `showDetails` is enabled, each file entry displays its size (human-readable) alongside the name:
 
 ```tsx
 <FilePicker showDetails />
 ```
+
+## Theme Customization
+
+Pass a `theme` prop to override any part of the default theme. The theme object has two keys: `styles` (functions returning Ink `BoxProps`/`TextProps`) and `config` (icon strings and separators).
+
+```tsx
+import type { FilePickerTheme } from 'ink-file-picker';
+
+const customTheme: Partial<FilePickerTheme> = {
+  styles: {
+    headerPath: () => ({ bold: true, color: 'green' }),
+    entryName: ({ isFocused, kind }) => ({
+      color: isFocused ? 'yellow' : kind === 'directory' ? 'green' : undefined,
+      bold: isFocused,
+    }),
+  },
+  config: {
+    directoryIcon: '+',
+    fileIcon: '-',
+  },
+};
+
+<FilePicker theme={customTheme} />
+```
+
+You only need to provide the keys you want to override; everything else falls back to the default theme. See the `FilePickerTheme` and `FilePickerThemeStyles` types for the full set of customizable style functions and config values.
+
+### Theme Config
+
+| Key | Type | Description |
+|-----|------|-------------|
+| `directoryIcon` | `string` | Icon shown before directory names |
+| `fileIcon` | `string` | Icon shown before file names |
+| `symlinkIcon` | `string` | Icon shown before symlink names |
+| `separatorChar` | `string` | Character used for visual separators |
+| `directoryTrail` | `string` | Trailing indicator for directories (e.g. `/`) |
+| `symlinkIndicator` | `string` | Indicator appended to symlink names |
 
 ## Callbacks
 
@@ -153,7 +202,7 @@ Fired when the user presses Escape while in browsing mode (not filtering). Use t
 
 ### `onDirectoryChange(path: string)`
 
-Fired whenever the user navigates to a new directory. Useful for syncing external state or displaying the current location elsewhere in your UI.
+Fired whenever the user navigates to a new directory. Only fires when the path actually changes, not on internal mode transitions. Useful for syncing external state or displaying the current location elsewhere in your UI.
 
 ## TypeScript
 
@@ -165,7 +214,6 @@ import type {
   FilePickerProps,
   EntryKind,
   FileTypeFilter,
-  SelectionMode,
   EntryFilter,
   OnSelectCallback,
   OnCancelCallback,
@@ -177,7 +225,7 @@ import type {
 } from 'ink-file-picker';
 ```
 
-### Key types
+### Key Types
 
 **`FileEntry`** -- represents a single filesystem entry:
 
@@ -196,7 +244,7 @@ type FileEntry = {
 
 **`FilePickerStateAPI`** -- returned by the `useFilePickerState` hook for building custom file picker UIs.
 
-### Advanced hooks
+### Advanced Hooks
 
 For custom file picker UIs, the package exposes the underlying hooks:
 
@@ -207,6 +255,30 @@ import {
   useDirectoryReader,
 } from 'ink-file-picker';
 ```
+
+- `useFilePickerState(props)` -- manages all state and actions (reducer, focus, filtering, navigation)
+- `useFilePicker({ state, onSelect, onCancel })` -- wires keyboard input to the state API
+- `useDirectoryReader(path, dispatch)` -- reads directory contents and dispatches results
+
+## Known Limitations
+
+- **Home/End key support relies on an Ink internal API.** Ink's public `useInput` hook does not expose Home and End key events. This component subscribes to `internal_eventEmitter` on Ink's stdin to capture the raw escape sequences for those keys. This works with current versions of Ink (v5.x) but could break if Ink changes or removes that internal emitter in a future release. If Home/End stop working after an Ink upgrade, this is the likely cause.
+
+## Contributing
+
+Contributions are welcome. Please open an issue to discuss larger changes before submitting a PR.
+
+```bash
+git clone https://github.com/costajohnt/ink-file-picker.git
+cd ink-file-picker
+npm install
+npm run build
+npm test
+```
+
+## Changelog
+
+This project follows [Semantic Versioning](https://semver.org/). See [GitHub Releases](https://github.com/costajohnt/ink-file-picker/releases) for the changelog.
 
 ## License
 

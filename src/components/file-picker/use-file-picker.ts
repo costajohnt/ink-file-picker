@@ -1,4 +1,5 @@
-import { useInput } from 'ink';
+import { useEffect } from 'react';
+import { useInput, useStdin } from 'ink';
 import type { FilePickerStateAPI } from './use-file-picker-state.js';
 import type { OnSelectCallback, OnCancelCallback } from '../../types.js';
 
@@ -22,12 +23,43 @@ function isSelectableEntry(
   return true;
 }
 
+// Home/End escape sequences that Ink's useInput doesn't expose.
+// Ink does not surface Home/End keys through its public useInput hook, so we
+// subscribe to the internal_eventEmitter on stdin to capture raw escape
+// sequences. This is a deliberate reliance on an Ink internal API and may
+// break if Ink changes or removes that emitter in a future version. See the
+// "Known Limitations" section in the README.
+const HOME_SEQUENCES = ['\x1B[H', '\x1BOH', '\x1B[1~', '\x1B[7~'];
+const END_SEQUENCES = ['\x1B[F', '\x1BOF', '\x1B[4~', '\x1B[8~'];
+
 export function useFilePicker({
   isDisabled = false,
   state,
   onSelect,
   onCancel,
 }: UseFilePickerProps) {
+  // Use raw stdin for Home/End keys since Ink's useInput swallows them
+  const { internal_eventEmitter } = useStdin();
+
+  useEffect(() => {
+    const isActive = !isDisabled && state.mode !== 'loading';
+    if (!isActive) return;
+
+    const handleRawInput = (data: string) => {
+      const raw = typeof data === 'string' ? data : String(data);
+      if (HOME_SEQUENCES.includes(raw)) {
+        state.focusFirst();
+      } else if (END_SEQUENCES.includes(raw)) {
+        state.focusLast();
+      }
+    };
+
+    internal_eventEmitter?.on('input', handleRawInput);
+    return () => {
+      internal_eventEmitter?.removeListener('input', handleRawInput);
+    };
+  }, [isDisabled, state.mode, state.focusFirst, state.focusLast, internal_eventEmitter]);
+
   useInput(
     (input, key) => {
       // Escape

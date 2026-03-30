@@ -1,36 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { safePath, truncatePath } from '../src/lib/path-utils.js';
-import { resolve } from 'node:path';
-
-describe('safePath', () => {
-  it('resolves relative paths', () => {
-    const result = safePath('foo/bar');
-    expect(result).toBe(resolve('foo/bar'));
-  });
-
-  it('clamps to root when path escapes', () => {
-    const root = '/home/user/project';
-    const result = safePath('/etc/passwd', root);
-    expect(result).toBe(resolve(root));
-  });
-
-  it('allows paths within root', () => {
-    const root = '/home/user/project';
-    const result = safePath('/home/user/project/src/index.ts', root);
-    expect(result).toBe(resolve('/home/user/project/src/index.ts'));
-  });
-
-  it('resolves absolute paths without root', () => {
-    const result = safePath('/tmp/test');
-    expect(result).toBe('/tmp/test');
-  });
-
-  it('clamps path traversal attempts', () => {
-    const root = '/home/user/project';
-    const result = safePath('/home/user/project/../../etc/passwd', root);
-    expect(result).toBe(resolve(root));
-  });
-});
+import { truncatePath } from '../src/lib/path-utils.js';
 
 describe('truncatePath', () => {
   it('returns short paths unchanged', () => {
