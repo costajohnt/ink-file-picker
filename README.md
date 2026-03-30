@@ -6,6 +6,10 @@
 
 A filesystem navigation and file selection component for [Ink](https://github.com/vadimdemedes/ink) -- the React renderer for CLIs.
 
+<p align="center">
+  <img src="media/demo.gif" alt="ink-file-picker demo" width="600" />
+</p>
+
 ## Features
 
 - Directory navigation with breadcrumb path display
