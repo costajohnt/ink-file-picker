@@ -39,7 +39,7 @@ export function FilePickerEntry({
     <Box
       {...styles.entryRow({ isFocused })}
       aria-role="listitem"
-      aria-state={{ selected: isSelected }}
+      aria-state={{ selected: isSelected || isFocused }}
     >
       {isFocused ? (
         <Text {...styles.focusIndicator()} aria-hidden>{'>'}</Text>
