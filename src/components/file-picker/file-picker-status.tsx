@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Text } from 'ink';
+import { Box, Text } from 'ink';
 import { SPINNER_FRAMES, SPINNER_INTERVAL } from '../../constants.js';
 import type { FilePickerThemeStyles } from '../../types.js';
 
@@ -32,17 +32,23 @@ export function FilePickerStatus({
 
   if (type === 'loading') {
     return (
-      <Text {...styles.spinner()}>
-        {spinnerChar} Loading directory...
-      </Text>
+      <Box aria-role="progressbar" aria-label="Loading directory" aria-state={{busy: true}}>
+        <Text {...styles.spinner()} aria-hidden>
+          {spinnerChar}
+        </Text>
+        <Text {...styles.spinner()}> Loading directory...</Text>
+      </Box>
     );
   }
 
   if (type === 'error') {
+    const errorText = message ?? 'Unknown error';
     return (
-      <Text {...styles.error()}>
-        x Error: {message ?? 'Unknown error'}
-      </Text>
+      <Box aria-label={`Error: ${errorText}`}>
+        <Text {...styles.error()}>
+          x Error: {errorText}
+        </Text>
+      </Box>
     );
   }
 
