@@ -2,7 +2,7 @@
 
 [![npm version](https://img.shields.io/npm/v/ink-file-picker.svg)](https://www.npmjs.com/package/ink-file-picker)
 [![CI](https://github.com/costajohnt/ink-file-picker/actions/workflows/ci.yml/badge.svg)](https://github.com/costajohnt/ink-file-picker/actions/workflows/ci.yml)
-[![license](https://img.shields.io/npm/l/ink-file-picker.svg)](https://github.com/costajohnt/ink-file-picker/blob/master/LICENSE)
+[![license](https://img.shields.io/npm/l/ink-file-picker.svg)](https://github.com/costajohnt/ink-file-picker/blob/master/LICENSE) [![npm downloads](https://img.shields.io/npm/dw/ink-file-picker.svg)](https://www.npmjs.com/package/ink-file-picker)
 
 <p align="center">
   <img src="media/demo.gif" alt="ink-file-picker demo" width="600">
