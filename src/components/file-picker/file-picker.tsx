@@ -57,7 +57,7 @@ export function FilePicker(props: FilePickerProps) {
   const isScreenReaderEnabled = useIsScreenReaderEnabled();
 
   return (
-    <Box {...styles.container()} aria-label="File picker">
+    <Box {...styles.container()}>
       <FilePickerHeader
         currentPath={state.currentPath}
         filterText={state.filterText}
@@ -83,7 +83,7 @@ export function FilePicker(props: FilePickerProps) {
       )}
 
       {(state.mode === 'browsing' || state.mode === 'filtering') && (
-        <Box aria-role="list" aria-label={`File list, ${state.filteredEntries.length} items`}>
+        <Box aria-role="list">
           {state.filteredEntries.length === 0 ? (
             <Box aria-role="listitem">
               <Text {...styles.emptyDirectory()}>

@@ -19,18 +19,16 @@ export function FilePickerHeader({
   styles,
 }: FilePickerHeaderProps) {
   return (
-    <Box {...styles.header()} aria-label={`Current directory: ${currentPath}`}>
-      <Text {...styles.headerPath()}>
+    <Box {...styles.header()}>
+      <Text {...styles.headerPath()} aria-label={`Current directory: ${currentPath}`}>
         <Text aria-hidden>{config.directoryIcon} </Text>
         {truncatePath(currentPath, 50)}
       </Text>
       {isFiltering && (
-        <Box aria-role="textbox" aria-label={`Filter: ${filterText}`}>
-          <Text {...styles.filterInput()}>
-            {' '}/ {filterText}
-            <Text inverse aria-hidden> </Text>
-          </Text>
-        </Box>
+        <Text {...styles.filterInput()} aria-label={`Filter: ${filterText}`}>
+          {' '}/ {filterText}
+          <Text inverse aria-hidden> </Text>
+        </Text>
       )}
     </Box>
   );

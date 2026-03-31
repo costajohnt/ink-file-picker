@@ -15,18 +15,6 @@ type FilePickerEntryProps = {
   isScreenReaderEnabled: boolean;
 };
 
-function buildEntryLabel(entry: FileEntry, isFocused: boolean, isSelected: boolean, multiSelect: boolean): string {
-  const parts: string[] = [];
-  const kind = entry.kind === 'symlink' && entry.symlinkTargetKind
-    ? `symlink to ${entry.symlinkTargetKind}`
-    : entry.kind;
-  parts.push(entry.name);
-  parts.push(kind);
-  if (isFocused) parts.push('focused');
-  if (multiSelect && isSelected) parts.push('selected');
-  return parts.join(', ');
-}
-
 export function FilePickerEntry({
   entry,
   isFocused,
@@ -47,15 +35,11 @@ export function FilePickerEntry({
     ? entry.name + config.directoryTrail
     : entry.name;
 
-  const isDirectory = entry.kind === 'directory' ||
-    (entry.kind === 'symlink' && entry.symlinkTargetKind === 'directory');
-
   return (
     <Box
       {...styles.entryRow({ isFocused })}
       aria-role="listitem"
-      aria-state={isDirectory ? { selected: isSelected, expanded: false } : { selected: isSelected }}
-      aria-label={isScreenReaderEnabled ? buildEntryLabel(entry, isFocused, isSelected, multiSelect) : undefined}
+      aria-state={{ selected: isSelected }}
     >
       {isFocused ? (
         <Text {...styles.focusIndicator()} aria-hidden>{'>'}</Text>
@@ -76,6 +60,7 @@ export function FilePickerEntry({
       <Text
         {...styles.entryName({ isFocused, isSelected, kind: entry.kind })}
         wrap="truncate"
+        aria-label={isScreenReaderEnabled ? `${entry.name}, ${entry.kind}` : undefined}
       >
         {displayName}
       </Text>

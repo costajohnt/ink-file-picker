@@ -32,11 +32,13 @@ export function FilePickerStatus({
 
   if (type === 'loading') {
     return (
-      <Box aria-role="progressbar" aria-label="Loading directory" aria-state={{busy: true}}>
+      <Box aria-role="progressbar" aria-state={{busy: true}}>
         <Text {...styles.spinner()} aria-hidden>
           {spinnerChar}
         </Text>
-        <Text {...styles.spinner()}> Loading directory...</Text>
+        <Text {...styles.spinner()} aria-label="Loading directory">
+          {' '}Loading directory...
+        </Text>
       </Box>
     );
   }
@@ -44,11 +46,9 @@ export function FilePickerStatus({
   if (type === 'error') {
     const errorText = message ?? 'Unknown error';
     return (
-      <Box aria-label={`Error: ${errorText}`}>
-        <Text {...styles.error()}>
-          x Error: {errorText}
-        </Text>
-      </Box>
+      <Text {...styles.error()} aria-label={`Error: ${errorText}`}>
+        x Error: {errorText}
+      </Text>
     );
   }
 
