@@ -1,6 +1,6 @@
 {
   "name": "ink-file-picker",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Filesystem navigation and file selection component for Ink",
   "license": "MIT",
   "author": "John Costa",
