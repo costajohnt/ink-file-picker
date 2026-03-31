@@ -12,7 +12,20 @@ type FilePickerEntryProps = {
   multiSelect: boolean;
   config: FilePickerTheme['config'];
   styles: FilePickerThemeStyles;
+  isScreenReaderEnabled: boolean;
 };
+
+function buildEntryLabel(entry: FileEntry, isFocused: boolean, isSelected: boolean, multiSelect: boolean): string {
+  const parts: string[] = [];
+  const kind = entry.kind === 'symlink' && entry.symlinkTargetKind
+    ? `symlink to ${entry.symlinkTargetKind}`
+    : entry.kind;
+  parts.push(entry.name);
+  parts.push(kind);
+  if (isFocused) parts.push('focused');
+  if (multiSelect && isSelected) parts.push('selected');
+  return parts.join(', ');
+}
 
 export function FilePickerEntry({
   entry,
@@ -22,6 +35,7 @@ export function FilePickerEntry({
   multiSelect,
   config,
   styles,
+  isScreenReaderEnabled,
 }: FilePickerEntryProps) {
   const icon = entry.kind === 'directory'
     ? config.directoryIcon
@@ -33,21 +47,31 @@ export function FilePickerEntry({
     ? entry.name + config.directoryTrail
     : entry.name;
 
+  const isDirectory = entry.kind === 'directory' ||
+    (entry.kind === 'symlink' && entry.symlinkTargetKind === 'directory');
+
   return (
-    <Box {...styles.entryRow({ isFocused })}>
+    <Box
+      {...styles.entryRow({ isFocused })}
+      aria-role="listitem"
+      aria-state={isDirectory ? { selected: isSelected, expanded: false } : { selected: isSelected }}
+      aria-label={isScreenReaderEnabled ? buildEntryLabel(entry, isFocused, isSelected, multiSelect) : undefined}
+    >
       {isFocused ? (
-        <Text {...styles.focusIndicator()}>{'>'}</Text>
+        <Text {...styles.focusIndicator()} aria-hidden>{'>'}</Text>
       ) : (
-        <Text> </Text>
+        <Text aria-hidden> </Text>
       )}
 
       {multiSelect && (
-        <Text {...styles.selectedIndicator()}>
-          {isSelected ? '[x]' : '[ ]'}
-        </Text>
+        <Box aria-role="checkbox" aria-state={{checked: isSelected}}>
+          <Text {...styles.selectedIndicator()} aria-hidden>
+            {isSelected ? '[x]' : '[ ]'}
+          </Text>
+        </Box>
       )}
 
-      <Text {...styles.entryIcon({ kind: entry.kind })}>{icon}</Text>
+      <Text {...styles.entryIcon({ kind: entry.kind })} aria-hidden>{icon}</Text>
 
       <Text
         {...styles.entryName({ isFocused, isSelected, kind: entry.kind })}

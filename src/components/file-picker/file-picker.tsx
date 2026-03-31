@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef } from 'react';
-import { Box, Text } from 'ink';
+import { Box, Text, useIsScreenReaderEnabled } from 'ink';
 import { useFilePickerState } from './use-file-picker-state.js';
 import { useFilePicker } from './use-file-picker.js';
 import { useDirectoryReader } from './use-directory-reader.js';
@@ -54,9 +54,10 @@ export function FilePicker(props: FilePickerProps) {
     [themeOverrides],
   );
   const { styles, config } = theme;
+  const isScreenReaderEnabled = useIsScreenReaderEnabled();
 
   return (
-    <Box {...styles.container()}>
+    <Box {...styles.container()} aria-label="File picker">
       <FilePickerHeader
         currentPath={state.currentPath}
         filterText={state.filterText}
@@ -65,7 +66,7 @@ export function FilePicker(props: FilePickerProps) {
         styles={styles}
       />
 
-      <Text {...styles.separator()}>
+      <Text {...styles.separator()} aria-hidden>
         {config.separatorChar.repeat(40)}
       </Text>
 
@@ -82,17 +83,19 @@ export function FilePicker(props: FilePickerProps) {
       )}
 
       {(state.mode === 'browsing' || state.mode === 'filtering') && (
-        <>
+        <Box aria-role="list" aria-label={`File list, ${state.filteredEntries.length} items`}>
           {state.filteredEntries.length === 0 ? (
-            <Text {...styles.emptyDirectory()}>
-              {state.filterText
-                ? 'No matches'
-                : 'Empty directory'}
-            </Text>
+            <Box aria-role="listitem">
+              <Text {...styles.emptyDirectory()}>
+                {state.filterText
+                  ? 'No matches'
+                  : 'Empty directory'}
+              </Text>
+            </Box>
           ) : (
             <>
               {state.visibleFromIndex > 0 && (
-                <Text dimColor>  {state.visibleFromIndex} more above</Text>
+                <Text dimColor aria-hidden>  {state.visibleFromIndex} more above</Text>
               )}
               {state.visibleEntries.map(entry => (
                 <FilePickerEntry
@@ -106,17 +109,18 @@ export function FilePicker(props: FilePickerProps) {
                   multiSelect={multiSelect}
                   config={config}
                   styles={styles}
+                  isScreenReaderEnabled={isScreenReaderEnabled}
                 />
               ))}
               {state.visibleToIndex < state.filteredEntries.length && (
-                <Text dimColor>  {state.filteredEntries.length - state.visibleToIndex} more below</Text>
+                <Text dimColor aria-hidden>  {state.filteredEntries.length - state.visibleToIndex} more below</Text>
               )}
             </>
           )}
-        </>
+        </Box>
       )}
 
-      <Text {...styles.separator()}>
+      <Text {...styles.separator()} aria-hidden>
         {config.separatorChar.repeat(40)}
       </Text>
 

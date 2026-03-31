@@ -38,11 +38,11 @@ export function FilePickerFooter({
   }
 
   return (
-    <Box {...styles.footer()}>
+    <Box {...styles.footer()} aria-role="toolbar" aria-label="Keyboard shortcuts">
       {hints.map(({ key, action }, i) => (
-        <Box key={i} marginRight={1}>
-          {key ? <Text {...styles.footerKey()}>[{key}]</Text> : null}
-          <Text {...styles.footerDescription()}> {action}</Text>
+        <Box key={i} marginRight={1} aria-label={key ? `${key}: ${action}` : action}>
+          {key ? <Text {...styles.footerKey()} aria-hidden>[{key}]</Text> : null}
+          <Text {...styles.footerDescription()} aria-hidden> {action}</Text>
         </Box>
       ))}
     </Box>
