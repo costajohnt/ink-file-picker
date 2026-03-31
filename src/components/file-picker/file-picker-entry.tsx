@@ -50,16 +50,11 @@ export function FilePickerEntry({
   const isDirectory = entry.kind === 'directory' ||
     (entry.kind === 'symlink' && entry.symlinkTargetKind === 'directory');
 
-  const ariaState: Record<string, boolean> = { selected: isSelected };
-  if (isDirectory) {
-    ariaState.expanded = false;
-  }
-
   return (
     <Box
       {...styles.entryRow({ isFocused })}
       aria-role="listitem"
-      aria-state={ariaState}
+      aria-state={isDirectory ? { selected: isSelected, expanded: false } : { selected: isSelected }}
       aria-label={isScreenReaderEnabled ? buildEntryLabel(entry, isFocused, isSelected, multiSelect) : undefined}
     >
       {isFocused ? (
