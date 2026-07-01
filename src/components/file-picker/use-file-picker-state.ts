@@ -1,5 +1,5 @@
 import { useReducer, useCallback, useMemo, useEffect, useRef } from 'react';
-import { dirname } from 'node:path';
+import { dirname, resolve, relative, isAbsolute } from 'node:path';
 import picomatch from 'picomatch';
 import { EntryMap } from '../../lib/entry-map.js';
 import type {
@@ -33,6 +33,8 @@ export type FilePickerState = {
   multiSelect: boolean;
   fileTypes: FileTypeFilter;
   filter: EntryFilter | undefined;
+  /** Sandbox root; navigation cannot go above this path. Resolved to absolute. */
+  rootPath: string | undefined;
 };
 
 // --- Action Types ---
@@ -130,6 +132,14 @@ function applyTextFilter(entries: FileEntry[], filterText: string): FileEntry[] 
   return entries.filter(e => e.name.toLowerCase().includes(needle));
 }
 
+/** True if `target` is `root` itself or a descendant of it. `root` must be absolute. */
+function isWithinRoot(target: string, root: string): boolean {
+  const resolvedTarget = resolve(target);
+  if (resolvedTarget === root) return true;
+  const rel = relative(root, resolvedTarget);
+  return rel !== '' && !rel.startsWith('..') && !isAbsolute(rel);
+}
+
 /** Shallow equality by entry identity (path), order-sensitive. */
 function sameEntries(a: FileEntry[], b: FileEntry[]): boolean {
   if (a.length !== b.length) return false;
@@ -215,6 +225,10 @@ export function reducer(state: FilePickerState, action: FilePickerAction): FileP
       const popped = history.pop();
       const targetPath = popped ?? dirname(state.currentPath);
       if (targetPath === state.currentPath) {
+        return state;
+      }
+      // Sandbox: refuse to navigate above rootPath.
+      if (state.rootPath && !isWithinRoot(targetPath, state.rootPath)) {
         return state;
       }
       return {
@@ -468,6 +482,8 @@ type InitArgs = {
   multiSelect: boolean;
   fileTypes: FileTypeFilter;
   filter: EntryFilter | undefined;
+  /** Sandbox root; navigation cannot go above this path. Resolved to absolute. */
+  rootPath: string | undefined;
 };
 
 function createInitialState(args: InitArgs): FilePickerState {
@@ -491,6 +507,7 @@ function createInitialState(args: InitArgs): FilePickerState {
     multiSelect: args.multiSelect,
     fileTypes: args.fileTypes,
     filter: args.filter,
+    rootPath: args.rootPath ? resolve(args.rootPath) : undefined,
   };
 }
 
@@ -542,11 +559,12 @@ export function useFilePickerState(props: FilePickerProps): FilePickerStateAPI {
     multiSelect = false,
     fileTypes = 'all',
     filter,
+    rootPath,
   } = props;
 
   const [state, dispatch] = useReducer(reducer, {
     initialPath, maxHeight, showHidden, showDetails,
-    multiSelect, fileTypes, filter,
+    multiSelect, fileTypes, filter, rootPath,
   }, createInitialState);
 
   // Keep reducer state in sync with config props that may change after mount.

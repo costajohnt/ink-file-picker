@@ -38,6 +38,7 @@ function makeBrowsingState(entries: FileEntry[], overrides: Partial<FilePickerSt
     multiSelect: false,
     fileTypes: 'all',
     filter: undefined,
+    rootPath: undefined,
     ...overrides,
   };
 }
@@ -63,6 +64,7 @@ function makeLoadingState(overrides: Partial<FilePickerState> = {}): FilePickerS
     multiSelect: false,
     fileTypes: 'all',
     filter: undefined,
+    rootPath: undefined,
     ...overrides,
   };
 }
@@ -457,6 +459,43 @@ describe('reducer', () => {
       const next = reducer(state, { type: 'navigate-to-parent' });
 
       expect(next.selectedPaths.size).toBe(0);
+    });
+
+    it('allows navigating to parent while still within rootPath', () => {
+      const state = makeBrowsingState([], {
+        currentPath: '/root/a/b',
+        rootPath: '/root',
+      });
+
+      const next = reducer(state, { type: 'navigate-to-parent' });
+
+      expect(next.currentPath).toBe('/root/a');
+      expect(next.mode).toBe('loading');
+    });
+
+    it('is a no-op when trying to navigate above rootPath', () => {
+      const state = makeBrowsingState([], {
+        currentPath: '/root',
+        rootPath: '/root',
+      });
+
+      const next = reducer(state, { type: 'navigate-to-parent' });
+
+      expect(next.currentPath).toBe('/root');
+      expect(next.mode).toBe('browsing');
+    });
+
+    it('does not consume pathHistory when blocked at rootPath', () => {
+      // With no history to pop, dirname('/root') = '/' is above rootPath -> blocked.
+      const state = makeBrowsingState([], {
+        currentPath: '/root',
+        rootPath: '/root',
+        pathHistory: [],
+      });
+
+      const next = reducer(state, { type: 'navigate-to-parent' });
+
+      expect(next).toBe(state);
     });
   });
 

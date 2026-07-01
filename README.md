@@ -63,6 +63,7 @@ render(<App />);
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
 | `initialPath` | `string` | `process.cwd()` | Starting directory path |
+| `rootPath` | `string` | `undefined` | Sandbox navigation to this directory and its descendants. The user cannot navigate above it (parent navigation becomes a no-op at the boundary). |
 | `filter` | `string \| (entry: FileEntry) => boolean` | `undefined` | Glob pattern or predicate function to filter visible entries. Glob is matched against entry names. Directories are always shown for navigation unless `fileTypes` is `'directories'`. |
 | `showHidden` | `boolean` | `false` | Show hidden files (dotfiles) |
 | `showDetails` | `boolean` | `false` | Show file size column |
@@ -115,6 +116,15 @@ You can also provide a `filter` prop for persistent filtering:
 ```
 
 In both cases, directories (and symlinks to directories) are always shown so you can still navigate into them.
+
+## Sandboxing Navigation
+
+Pass `rootPath` to confine the user to a directory subtree. Once at the root, Backspace, Left Arrow, and parent navigation become no-ops, so the user can never browse above it:
+
+```tsx
+// User can browse anywhere under /home/user/project but not escape it
+<FilePicker initialPath="/home/user/project/src" rootPath="/home/user/project" />
+```
 
 ## Multi-Select Mode
 

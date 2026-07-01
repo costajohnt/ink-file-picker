@@ -58,6 +58,14 @@ export type FilePickerProps = {
   readonly initialPath?: string;
 
   /**
+   * Sandbox navigation to this directory and its descendants. When set, the
+   * user cannot navigate above it: Backspace / Left Arrow / parent navigation
+   * becomes a no-op once the current directory is at the root boundary.
+   * @default undefined (no sandbox)
+   */
+  readonly rootPath?: string;
+
+  /**
    * Glob pattern or predicate function to filter visible entries.
    * Glob is matched against entry names (not full paths).
    * Only affects visibility -- directories needed for navigation are always shown

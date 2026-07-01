@@ -418,6 +418,53 @@ describe('FilePicker', () => {
     });
   });
 
+  describe('rootPath sandbox', () => {
+    it('does not navigate above rootPath on Backspace', async () => {
+      mockReadDirectory.mockResolvedValue(defaultEntries);
+
+      const { stdin } = render(
+        <FilePicker initialPath="/mock" rootPath="/mock" />
+      );
+
+      await delay();
+      expect(mockReadDirectory).toHaveBeenCalledTimes(1);
+
+      // Backspace at the root boundary is a no-op: no re-read.
+      stdin.write('\x7F');
+      await delay();
+
+      expect(mockReadDirectory).toHaveBeenCalledTimes(1);
+    });
+
+    it('still allows navigating up while below rootPath', async () => {
+      const childEntries = [makeEntry('index.ts')];
+      mockReadDirectory
+        .mockResolvedValueOnce(defaultEntries)   // /mock
+        .mockResolvedValueOnce(childEntries)     // /mock/src
+        .mockResolvedValueOnce(defaultEntries);  // back to /mock
+
+      const { stdin } = render(
+        <FilePicker initialPath="/mock" rootPath="/mock" />
+      );
+
+      await delay();
+      // Enter first directory (node_modules, alphabetically first)
+      stdin.write('\r');
+      await delay();
+      expect(mockReadDirectory).toHaveBeenCalledTimes(2);
+
+      // Backspace: allowed, we are below root
+      stdin.write('\x7F');
+      await delay();
+      expect(mockReadDirectory).toHaveBeenCalledTimes(3);
+
+      // Backspace again: now at root, no-op
+      stdin.write('\x7F');
+      await delay();
+      expect(mockReadDirectory).toHaveBeenCalledTimes(3);
+    });
+  });
+
   describe('reactive props', () => {
     it('re-filters the list when the filter prop changes at runtime', async () => {
       const entries = [makeEntry('alpha.ts'), makeEntry('bravo.md')];
