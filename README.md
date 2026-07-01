@@ -29,7 +29,7 @@ A filesystem navigation and file selection component for [Ink](https://github.co
 npm install ink-file-picker
 ```
 
-Peer dependencies: `ink` (>= 5.0.0) and `react` (>= 18.0.0).
+Peer dependencies: `ink` (>= 6.0.0) and `react` (>= 19.0.0). Requires Node.js >= 20.
 
 ## Quick Start
 
@@ -266,7 +266,7 @@ import {
 
 ## Known Limitations
 
-- **Home/End key support relies on an Ink internal API.** Ink's public `useInput` hook does not expose Home and End key events. This component subscribes to `internal_eventEmitter` on Ink's stdin to capture the raw escape sequences for those keys. This works with current versions of Ink (v5.x) but could break if Ink changes or removes that internal emitter in a future release. If Home/End stop working after an Ink upgrade, this is the likely cause.
+- **Home/End key support relies on an Ink internal API.** Ink's public `useInput` hook does not expose Home and End key events. This component subscribes to `internal_eventEmitter` on Ink's stdin to capture the raw escape sequences for those keys. This works with current versions of Ink (v6.x) but could break if Ink changes or removes that internal emitter in a future release. If Home/End stop working after an Ink upgrade, this is the likely cause.
 
 ## Contributing
 
