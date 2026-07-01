@@ -22,6 +22,7 @@ function makeBrowsingState(entries: FileEntry[], overrides: Partial<FilePickerSt
     mode: 'browsing',
     currentPath: '/mock',
     pathHistory: [],
+    rawEntries: sorted,
     allEntries: sorted,
     filteredEntries: sorted,
     entryMap,
@@ -46,6 +47,7 @@ function makeLoadingState(overrides: Partial<FilePickerState> = {}): FilePickerS
     mode: 'loading',
     currentPath: '/mock',
     pathHistory: [],
+    rawEntries: [],
     allEntries: [],
     filteredEntries: [],
     entryMap: new EntryMap([]),
@@ -740,6 +742,77 @@ describe('reducer', () => {
 
       expect(next.mode).toBe('loading');
       expect(next.errorMessage).toBeUndefined();
+    });
+  });
+
+  describe('sync-config', () => {
+    const baseConfig = {
+      showHidden: false,
+      showDetails: false,
+      multiSelect: false,
+      fileTypes: 'all' as const,
+      filter: undefined,
+      maxHeight: 10,
+    };
+
+    it('re-derives filtered entries when the filter changes', () => {
+      const raw = [makeEntry('alpha.ts'), makeEntry('bravo.md'), makeEntry('src', 'directory')];
+      const state = makeBrowsingState(raw, { rawEntries: raw });
+
+      const next = reducer(state, {
+        type: 'sync-config',
+        config: { ...baseConfig, filter: '*.ts' },
+      });
+
+      const names = next.allEntries.map(e => e.name);
+      expect(names).toContain('alpha.ts');
+      expect(names).toContain('src'); // directories stay navigable
+      expect(names).not.toContain('bravo.md');
+    });
+
+    it('re-applies hidden filtering when showHidden changes', () => {
+      const raw = [makeEntry('.env'), makeEntry('visible.ts')];
+      const state = makeBrowsingState([makeEntry('visible.ts')], { rawEntries: raw });
+
+      const next = reducer(state, {
+        type: 'sync-config',
+        config: { ...baseConfig, showHidden: true },
+      });
+
+      expect(next.allEntries.map(e => e.name)).toContain('.env');
+    });
+
+    it('updates multiSelect without touching entries', () => {
+      const raw = [makeEntry('file.ts')];
+      const state = makeBrowsingState(raw, { rawEntries: raw, multiSelect: false });
+
+      const next = reducer(state, {
+        type: 'sync-config',
+        config: { ...baseConfig, multiSelect: true },
+      });
+
+      expect(next.multiSelect).toBe(true);
+    });
+
+    it('returns the same state reference when nothing effectively changed', () => {
+      const raw = [makeEntry('file.ts')];
+      const state = makeBrowsingState(raw, { rawEntries: raw });
+
+      const next = reducer(state, { type: 'sync-config', config: baseConfig });
+
+      expect(next).toBe(state);
+    });
+
+    it('preserves focus when the focused entry survives a config change', () => {
+      const raw = [makeEntry('alpha.ts'), makeEntry('bravo.ts')];
+      const state = makeBrowsingState(raw, { rawEntries: raw, focusedEntryName: 'bravo.ts' });
+
+      const next = reducer(state, {
+        type: 'sync-config',
+        config: { ...baseConfig, showDetails: true },
+      });
+
+      expect(next.focusedEntryName).toBe('bravo.ts');
     });
   });
 

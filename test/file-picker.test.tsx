@@ -418,6 +418,66 @@ describe('FilePicker', () => {
     });
   });
 
+  describe('reactive props', () => {
+    it('re-filters the list when the filter prop changes at runtime', async () => {
+      const entries = [makeEntry('alpha.ts'), makeEntry('bravo.md')];
+      mockReadDirectory.mockResolvedValue(entries);
+
+      const { lastFrame, rerender } = render(
+        <FilePicker initialPath="/mock" filter="*.ts" />
+      );
+
+      await delay();
+      expect(lastFrame()).toContain('alpha.ts');
+      expect(lastFrame()).not.toContain('bravo.md');
+
+      rerender(<FilePicker initialPath="/mock" filter="*.md" />);
+      await delay();
+
+      expect(lastFrame()).toContain('bravo.md');
+      expect(lastFrame()).not.toContain('alpha.ts');
+    });
+
+    it('re-filters hidden files when showHidden changes at runtime', async () => {
+      mockReadDirectory.mockResolvedValue(defaultEntries);
+
+      const { lastFrame, rerender } = render(
+        <FilePicker initialPath="/mock" />
+      );
+
+      await delay();
+      expect(lastFrame()).not.toContain('.gitignore');
+
+      rerender(<FilePicker initialPath="/mock" showHidden />);
+      await delay();
+
+      expect(lastFrame()).toContain('.gitignore');
+    });
+
+    it('makes Space toggle selection when multiSelect is enabled at runtime', async () => {
+      const entries = [makeEntry('file1.ts'), makeEntry('file2.ts')];
+      mockReadDirectory.mockResolvedValue(entries);
+
+      const { lastFrame, stdin, rerender } = render(
+        <FilePicker initialPath="/mock" />
+      );
+
+      await delay();
+      // multiSelect off: no checkboxes rendered
+      expect(lastFrame()).not.toContain('[ ]');
+
+      rerender(<FilePicker initialPath="/mock" multiSelect />);
+      await delay();
+      // checkboxes now render (render path picks up the change)
+      expect(lastFrame()).toContain('[ ]');
+
+      // Space now toggles selection (keyboard path reads the same reactive value)
+      stdin.write(' ');
+      await delay();
+      expect(lastFrame()).toContain('[x]');
+    });
+  });
+
   describe('virtual scrolling', () => {
     it('shows only maxHeight entries', async () => {
       const entries = Array.from({ length: 20 }, (_, i) =>
