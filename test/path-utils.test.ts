@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { sep, join } from 'node:path';
 import { truncatePath } from '../src/lib/path-utils.js';
 
 describe('truncatePath', () => {
@@ -21,5 +22,17 @@ describe('truncatePath', () => {
     const longPath = '/a/b/c/d/e/f/g/h/i/j/very-long-directory-name';
     const result = truncatePath(longPath, 10);
     expect(result).toContain('very-long-directory-name');
+  });
+
+  it('truncates paths built with the platform separator', () => {
+    // Paths are built with node:path.join, which uses the platform separator
+    // (backslash on Windows). truncatePath must split on that separator, not a
+    // hardcoded '/'.
+    const longPath = join(sep, 'Users', 'john', 'projects', 'big-app', 'src', 'components');
+    const result = truncatePath(longPath, 20);
+    expect(result.startsWith('...')).toBe(true);
+    expect(result).toContain(`components`);
+    // The joined segments in the output are separated by the platform separator.
+    expect(result).toContain(`src${sep}components`);
   });
 });
