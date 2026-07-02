@@ -176,6 +176,32 @@ describe('FilePicker', () => {
       expect(frame).toBeDefined();
     });
 
+    it('jumps to the last entry with End and back to the first with Home', async () => {
+      const { lastFrame, stdin } = render(
+        <FilePicker initialPath="/mock" />
+      );
+
+      await delay();
+
+      // Entries can render in a single row, so assert the focus marker `>`
+      // sits immediately before the focused entry, not merely on the frame.
+      // Strip ANSI colour codes so the adjacency check holds under FORCE_COLOR.
+      const ansi = new RegExp(String.raw`${String.fromCodePoint(27)}\[[0-9;]*m`, 'g');
+      const plain = (): string => (lastFrame() ?? '').replaceAll(ansi, '');
+
+      // End (CSI F) — focus jumps to the last visible entry (README.md:
+      // directories sort first, .gitignore is hidden by default)
+      stdin.write('\x1B[F');
+      await delay();
+      expect(plain()).toMatch(/>\s*README\.md/);
+
+      // Home (CSI H) — focus returns to the first entry
+      stdin.write('\x1B[H');
+      await delay();
+      expect(plain()).toMatch(/>\s*›\s*node_modules/);
+      expect(plain()).not.toMatch(/>\s*README\.md/);
+    });
+
     it('enters directory on Enter', async () => {
       // First call returns default entries; second call for src/ contents
       const srcEntries = [makeEntry('index.ts')];
