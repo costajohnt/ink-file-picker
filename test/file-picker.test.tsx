@@ -33,7 +33,7 @@ const defaultEntries: FileEntry[] = [
   makeEntry('.gitignore'),
 ];
 
-function delay(ms: number = 50): Promise<void> {
+async function delay(ms = 50): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
@@ -540,7 +540,7 @@ describe('FilePicker', () => {
 
       const frame = lastFrame();
       // Should only show 5 entries, not all 20
-      const fileMatches = frame!.match(/file-\d{2}\.ts/g) || [];
+      const fileMatches = frame!.match(/file-\d{2}\.ts/g) ?? [];
       expect(fileMatches.length).toBeLessThanOrEqual(5);
     });
   });
