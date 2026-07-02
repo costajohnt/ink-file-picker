@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.3.1](https://github.com/costajohnt/ink-file-picker/compare/v0.3.0...v0.3.1) (2026-07-02)
+
+
+### Bug Fixes
+
+* use public key.home/key.end for Home/End key handling ([bfb9b04](https://github.com/costajohnt/ink-file-picker/commit/bfb9b041d9f22f9b4c93c8ac11545bd44c829827))
+
 ## [0.3.0] - 2026-07-01
 
 ### Added
