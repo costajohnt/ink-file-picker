@@ -232,6 +232,36 @@ describe('reducer', () => {
       expect(next.filterText).toBe('');
       expect(next.mode).toBe('loading');
     });
+
+    it('load-directory resets pathHistory and selectedPaths', () => {
+      const state = makeBrowsingState([makeEntry('file.ts')], {
+        pathHistory: ['/a', '/b'],
+        multiSelect: true,
+        selectedPaths: new Set(['/mock/file.ts']),
+      });
+
+      const next = reducer(state, { type: 'load-directory', path: '/new-path' });
+
+      expect(next.currentPath).toBe('/new-path');
+      expect(next.pathHistory).toEqual([]);
+      expect(next.selectedPaths.size).toBe(0);
+    });
+
+    it('load-directory clamps an out-of-root path back to rootPath', () => {
+      const state = makeBrowsingState([], { currentPath: '/root/a', rootPath: '/root' });
+
+      const next = reducer(state, { type: 'load-directory', path: '/etc' });
+
+      expect(next.currentPath).toBe('/root');
+    });
+
+    it('load-directory allows an in-root path unchanged', () => {
+      const state = makeBrowsingState([], { currentPath: '/root/a', rootPath: '/root' });
+
+      const next = reducer(state, { type: 'load-directory', path: '/root/b/c' });
+
+      expect(next.currentPath).toBe('/root/b/c');
+    });
   });
 
   describe('load-directory-error', () => {
@@ -427,6 +457,40 @@ describe('reducer', () => {
       const next = reducer(state, { type: 'navigate-into-directory', name: 'src' });
 
       expect(next.selectedPaths.size).toBe(0);
+    });
+
+    it('does not follow a symlink whose target escapes rootPath', () => {
+      const entries = [makeEntry('logs', 'symlink', {
+        symlinkTarget: '/var/log',
+        symlinkTargetKind: 'directory',
+      })];
+      const state = makeBrowsingState(entries, {
+        currentPath: '/root/project',
+        rootPath: '/root/project',
+        focusedEntryName: 'logs',
+      });
+
+      const next = reducer(state, { type: 'navigate-into-directory', name: 'logs' });
+
+      // Sandbox escape blocked: no-op.
+      expect(next).toBe(state);
+    });
+
+    it('follows a symlink whose target stays within rootPath', () => {
+      const entries = [makeEntry('shortcut', 'symlink', {
+        symlinkTarget: '/root/project/sub',
+        symlinkTargetKind: 'directory',
+      })];
+      const state = makeBrowsingState(entries, {
+        currentPath: '/root/project',
+        rootPath: '/root/project',
+        focusedEntryName: 'shortcut',
+      });
+
+      const next = reducer(state, { type: 'navigate-into-directory', name: 'shortcut' });
+
+      expect(next.currentPath).toBe('/root/project/sub');
+      expect(next.mode).toBe('loading');
     });
   });
 
@@ -842,16 +906,94 @@ describe('reducer', () => {
       expect(next).toBe(state);
     });
 
-    it('preserves focus when the focused entry survives a config change', () => {
-      const raw = [makeEntry('alpha.ts'), makeEntry('bravo.ts')];
-      const state = makeBrowsingState(raw, { rawEntries: raw, focusedEntryName: 'bravo.ts' });
+    it('preserves focus and keeps it on-screen when the focused entry survives', () => {
+      // 100 entries, window of 10 scrolled to [35, 45), focus at index 40.
+      const raw = Array.from({ length: 100 }, (_, i) => makeEntry(`file-${String(i).padStart(3, '0')}.ts`));
+      const state = makeBrowsingState(raw, {
+        rawEntries: raw,
+        focusedEntryName: 'file-040.ts',
+        visibleFromIndex: 35,
+        visibleToIndex: 45,
+        visibleEntryCount: 10,
+      });
 
       const next = reducer(state, {
         type: 'sync-config',
         config: { ...baseConfig, showDetails: true },
       });
 
-      expect(next.focusedEntryName).toBe('bravo.ts');
+      expect(next.focusedEntryName).toBe('file-040.ts');
+      // The focused index must stay within the visible window, not be stranded.
+      const focusedIndex = next.filteredEntries.findIndex(e => e.name === next.focusedEntryName);
+      expect(focusedIndex).toBeGreaterThanOrEqual(next.visibleFromIndex);
+      expect(focusedIndex).toBeLessThan(next.visibleToIndex);
+      expect(next.visibleToIndex - next.visibleFromIndex).toBeLessThanOrEqual(10);
+    });
+
+    it('resets the window to the top when the focused entry disappears', () => {
+      const raw = Array.from({ length: 50 }, (_, i) => makeEntry(`file-${String(i).padStart(2, '0')}.ts`));
+      const state = makeBrowsingState(raw, {
+        rawEntries: raw,
+        focusedEntryName: 'file-40.ts',
+        visibleFromIndex: 35,
+        visibleToIndex: 45,
+        visibleEntryCount: 10,
+      });
+
+      // Filter down to just file-00.ts; the old focus is gone.
+      const next = reducer(state, {
+        type: 'sync-config',
+        config: { ...baseConfig, filter: 'file-00.ts' },
+      });
+
+      expect(next.focusedEntryName).toBe('file-00.ts');
+      expect(next.visibleFromIndex).toBe(0);
+    });
+
+    it('bails (same state ref) when a new filter function is behaviorally identical', () => {
+      const raw = [makeEntry('a.ts'), makeEntry('b.md')];
+      const f1 = (e: FileEntry) => e.name.endsWith('.ts');
+      const state = makeBrowsingState([makeEntry('a.ts')], { rawEntries: raw, filter: f1 });
+
+      // A DISTINCT function instance with equivalent behavior must not produce a
+      // new state object (guards against the inline-filter render loop).
+      const f2 = (e: FileEntry) => e.name.endsWith('.ts');
+      const next = reducer(state, { type: 'sync-config', config: { ...baseConfig, filter: f2 } });
+
+      expect(next).toBe(state);
+    });
+
+    it('drops selections filtered out by a fileTypes change', () => {
+      const raw = [makeEntry('keep.ts'), makeEntry('dir', 'directory')];
+      const state = makeBrowsingState(raw, {
+        rawEntries: raw,
+        multiSelect: true,
+        selectedPaths: new Set(['/mock/keep.ts']),
+      });
+
+      // directories-only removes keep.ts from the list entirely.
+      const next = reducer(state, {
+        type: 'sync-config',
+        config: { ...baseConfig, multiSelect: true, fileTypes: 'directories' },
+      });
+
+      expect(next.selectedPaths.has('/mock/keep.ts')).toBe(false);
+    });
+
+    it('keeps selections that remain visible after a config change', () => {
+      const raw = [makeEntry('keep.ts'), makeEntry('other.md')];
+      const state = makeBrowsingState(raw, {
+        rawEntries: raw,
+        multiSelect: true,
+        selectedPaths: new Set(['/mock/keep.ts']),
+      });
+
+      const next = reducer(state, {
+        type: 'sync-config',
+        config: { ...baseConfig, multiSelect: true, filter: '*.ts' },
+      });
+
+      expect(next.selectedPaths.has('/mock/keep.ts')).toBe(true);
     });
   });
 

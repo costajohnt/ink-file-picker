@@ -525,6 +525,167 @@ describe('FilePicker', () => {
     });
   });
 
+  describe('reactive props (more)', () => {
+    it('applies maxHeight changes at runtime', async () => {
+      const entries = Array.from({ length: 20 }, (_, i) =>
+        makeEntry(`file-${String(i).padStart(2, '0')}.ts`)
+      );
+      mockReadDirectory.mockResolvedValue(entries);
+
+      // The "N more below" indicator reflects the window size directly and is
+      // robust to the row layout truncating entry names.
+      const moreBelow = (frame: string): number => {
+        const match = /(\d+) more below/.exec(frame.replaceAll(/\s+/g, ' '));
+        return Number(match?.[1] ?? '0');
+      };
+
+      const { lastFrame, rerender } = render(
+        <FilePicker initialPath="/mock" maxHeight={5} />
+      );
+
+      await delay();
+      expect(moreBelow(lastFrame()!)).toBe(15); // 20 - 5 visible
+
+      rerender(<FilePicker initialPath="/mock" maxHeight={12} />);
+      await delay();
+      expect(moreBelow(lastFrame()!)).toBe(8); // 20 - 12 visible
+    });
+
+    it('applies fileTypes changes at runtime', async () => {
+      const entries = [makeEntry('file.ts'), makeEntry('dir', 'directory')];
+      mockReadDirectory.mockResolvedValue(entries);
+
+      const { lastFrame, rerender } = render(
+        <FilePicker initialPath="/mock" />
+      );
+
+      await delay();
+      expect(lastFrame()).toContain('file.ts');
+
+      rerender(<FilePicker initialPath="/mock" fileTypes="directories" />);
+      await delay();
+      expect(lastFrame()).not.toContain('file.ts');
+      expect(lastFrame()).toContain('dir');
+    });
+
+    it('does not loop when given a fresh inline filter each render', async () => {
+      const entries = [makeEntry('alpha.ts'), makeEntry('bravo.ts')];
+      mockReadDirectory.mockResolvedValue(entries);
+
+      const { lastFrame, rerender } = render(
+        <FilePicker initialPath="/mock" filter={entry => entry.name.endsWith('.ts')} />
+      );
+
+      await delay();
+      const frame1 = lastFrame();
+
+      // New inline arrow instance each render -- must not thrash / loop.
+      rerender(<FilePicker initialPath="/mock" filter={entry => entry.name.endsWith('.ts')} />);
+      await delay();
+
+      expect(lastFrame()).toBe(frame1);
+      expect(lastFrame()).toContain('alpha.ts');
+    });
+  });
+
+  describe('initialPath reactivity', () => {
+    it('navigates and resets when initialPath changes at runtime', async () => {
+      const otherEntries = [makeEntry('other.ts')];
+      mockReadDirectory
+        .mockResolvedValueOnce(defaultEntries) // /mock
+        .mockResolvedValueOnce(otherEntries);  // /other
+
+      const { lastFrame, rerender } = render(
+        <FilePicker initialPath="/mock" />
+      );
+
+      await delay();
+      expect(lastFrame()).toContain('src');
+
+      rerender(<FilePicker initialPath="/other" />);
+      await delay();
+
+      expect(mockReadDirectory).toHaveBeenCalledWith('/other');
+      expect(lastFrame()).toContain('other.ts');
+      expect(lastFrame()).not.toContain('src');
+    });
+
+    it('surfaces error mode when a new initialPath fails to read', async () => {
+      mockReadDirectory
+        .mockResolvedValueOnce(defaultEntries)
+        .mockRejectedValueOnce(new Error('EACCES: permission denied'));
+
+      const { lastFrame, rerender } = render(
+        <FilePicker initialPath="/mock" />
+      );
+
+      await delay();
+      rerender(<FilePicker initialPath="/bad" />);
+      await delay();
+
+      expect(lastFrame()).toContain('Error');
+      expect(lastFrame()).toContain('EACCES');
+    });
+
+    it('clamps an out-of-root initialPath to rootPath at mount', async () => {
+      mockReadDirectory.mockResolvedValue(defaultEntries);
+
+      render(<FilePicker initialPath="/etc/somewhere" rootPath="/mock" />);
+      await delay();
+
+      // The very first read is the clamped root, never the out-of-root path.
+      expect(mockReadDirectory).toHaveBeenCalledWith('/mock');
+      expect(mockReadDirectory).not.toHaveBeenCalledWith('/etc/somewhere');
+    });
+
+    it('treats rootPath as mount-only (runtime change is ignored)', async () => {
+      mockReadDirectory.mockResolvedValue(defaultEntries);
+
+      const { stdin, rerender } = render(
+        <FilePicker initialPath="/mock" rootPath="/mock" />
+      );
+
+      await delay();
+      expect(mockReadDirectory).toHaveBeenCalledTimes(1);
+
+      // Loosen the sandbox at runtime; the pinned mount-time root still applies.
+      rerender(<FilePicker initialPath="/mock" rootPath="/" />);
+      await delay();
+
+      stdin.write('\x7F'); // Backspace at /mock is still a no-op under the pinned root
+      await delay();
+      expect(mockReadDirectory).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('stale directory reads', () => {
+    it('discards a stale read that resolves after navigation', async () => {
+      let resolveStale!: (entries: FileEntry[]) => void;
+      const stale = new Promise<FileEntry[]>(resolve => {
+        resolveStale = resolve;
+      });
+      mockReadDirectory
+        .mockReturnValueOnce(stale)                          // /mock -- left pending
+        .mockResolvedValueOnce([makeEntry('new-file.ts')]);  // /other -- resolves first
+
+      const { lastFrame, rerender } = render(
+        <FilePicker initialPath="/mock" />
+      );
+
+      await delay();
+      rerender(<FilePicker initialPath="/other" />);
+      await delay();
+      expect(lastFrame()).toContain('new-file.ts');
+
+      // The superseded /mock read now resolves -- its entries must be discarded.
+      resolveStale([makeEntry('stale-file.ts')]);
+      await delay();
+
+      expect(lastFrame()).toContain('new-file.ts');
+      expect(lastFrame()).not.toContain('stale-file.ts');
+    });
+  });
+
   describe('virtual scrolling', () => {
     it('shows only maxHeight entries', async () => {
       const entries = Array.from({ length: 20 }, (_, i) =>
