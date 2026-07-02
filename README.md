@@ -278,10 +278,6 @@ import {
 - `useFilePicker({ state, onSelect, onCancel })` -- wires keyboard input to the state API
 - `useDirectoryReader({ mode, currentPath, dispatch })` -- reads directory contents when `mode` is `'loading'` and dispatches results
 
-## Known Limitations
-
-- **Home/End key support relies on an Ink internal API.** Ink's public `useInput` hook does not expose Home and End key events. This component subscribes to `internal_eventEmitter` on Ink's stdin to capture the raw escape sequences for those keys. This works with current versions of Ink (v6.x) but could break if Ink changes or removes that internal emitter in a future release. If Home/End stop working after an Ink upgrade, this is the likely cause.
-
 ## Contributing
 
 Contributions are welcome. Please open an issue to discuss larger changes before submitting a PR.
