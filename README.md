@@ -63,7 +63,7 @@ render(<App />);
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
 | `initialPath` | `string` | `process.cwd()` | Starting directory path |
-| `rootPath` | `string` | `undefined` | Sandbox navigation to this directory and its descendants. The user cannot navigate above it (parent navigation becomes a no-op at the boundary). |
+| `rootPath` | `string` | `undefined` | Sandbox navigation to this directory and its descendants. The user cannot navigate above it (parent navigation is a no-op at the boundary, escaping symlinks are not followed, an out-of-root `initialPath` is clamped to the root). Read once at mount. |
 | `filter` | `string \| (entry: FileEntry) => boolean` | `undefined` | Glob pattern or predicate function to filter visible entries. Glob is matched against entry names. Directories are always shown for navigation unless `fileTypes` is `'directories'`. |
 | `showHidden` | `boolean` | `false` | Show hidden files (dotfiles) |
 | `showDetails` | `boolean` | `false` | Show file size column |
@@ -126,6 +126,8 @@ Pass `rootPath` to confine the user to a directory subtree. Once at the root, Ba
 <FilePicker initialPath="/home/user/project/src" rootPath="/home/user/project" />
 ```
 
+The sandbox also blocks the other escape routes: a symlink whose target resolves outside the root is not followed, and an `initialPath` outside the root is clamped back to the root. `rootPath` is read once at mount.
+
 ## Multi-Select Mode
 
 Enable `multiSelect` to let users select multiple files before confirming:
@@ -143,6 +145,8 @@ Enable `multiSelect` to let users select multiple files before confirming:
 - Press **Enter** to confirm and submit all selected paths
 - If no entries are toggled, pressing Enter on a file submits just that file
 - Selected entries are highlighted in the list
+
+If a `filter`, `fileTypes`, or `showHidden` change removes an already-selected entry from the list, that selection is dropped (it will not be returned by `onSelect`). Type-ahead filtering does not drop selections, since it only narrows the current view.
 
 ## File Types
 

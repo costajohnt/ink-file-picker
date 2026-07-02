@@ -153,18 +153,23 @@ function sameEntries(a: FileEntry[], b: FileEntry[]): boolean {
 
 export function reducer(state: FilePickerState, action: FilePickerAction): FilePickerState {
   switch (action.type) {
-    case 'load-directory':
+    case 'load-directory': {
       // A fresh navigation to an explicit path (e.g. initialPath changed):
-      // reset history and selection.
+      // reset history and selection. Clamp into rootPath so a new initialPath
+      // outside the sandbox cannot escape it.
+      const targetPath = state.rootPath && !isWithinRoot(action.path, state.rootPath)
+        ? state.rootPath
+        : action.path;
       return {
         ...state,
         mode: 'loading',
-        currentPath: action.path,
+        currentPath: targetPath,
         pathHistory: [],
         selectedPaths: new Set<string>(),
         filterText: '',
         errorMessage: undefined,
       };
+    }
 
     case 'load-directory-success': {
       const allEntries = applyStaticFilters(action.entries, state);
@@ -207,6 +212,12 @@ export function reducer(state: FilePickerState, action: FilePickerAction): FileP
       const targetPath = entry.kind === 'symlink' && entry.symlinkTarget
         ? entry.symlinkTarget
         : entry.path;
+
+      // Sandbox: a symlink target is an absolute realpath that can point
+      // anywhere, so refuse to follow one that escapes rootPath.
+      if (state.rootPath && !isWithinRoot(targetPath, state.rootPath)) {
+        return state;
+      }
 
       return {
         ...state,
@@ -449,9 +460,36 @@ export function reducer(state: FilePickerState, action: FilePickerAction): FileP
       }
 
       const entryMap = new EntryMap(filteredEntries);
-      const focusedEntryName = filteredEntries.some(e => e.name === state.focusedEntryName)
-        ? state.focusedEntryName
-        : entryMap.first?.name;
+      const focusedIndex = filteredEntries.findIndex(e => e.name === state.focusedEntryName);
+      const focusSurvives = focusedIndex !== -1;
+      const focusedEntryName = focusSurvives ? state.focusedEntryName : entryMap.first?.name;
+
+      // Keep the focused row on-screen: preserve the old scroll offset when it
+      // still contains the focused index, otherwise clamp the window around it.
+      // Reset to the top only when the focused entry no longer exists.
+      let visibleFromIndex = 0;
+      if (focusSurvives) {
+        visibleFromIndex = state.visibleFromIndex;
+        if (focusedIndex < visibleFromIndex) {
+          visibleFromIndex = focusedIndex;
+        } else if (focusedIndex >= visibleFromIndex + maxHeight) {
+          visibleFromIndex = focusedIndex - maxHeight + 1;
+        }
+        visibleFromIndex = Math.max(0, Math.min(visibleFromIndex, Math.max(0, filteredEntries.length - maxHeight)));
+      }
+      const visibleToIndex = Math.min(filteredEntries.length, visibleFromIndex + maxHeight);
+
+      // Drop selections no longer present in the statically-filtered list (a
+      // filter/fileTypes/showHidden change made them non-selectable); type-ahead
+      // narrowing does not prune because it does not affect allEntries.
+      let selectedPaths = state.selectedPaths;
+      if (selectedPaths.size > 0) {
+        const visiblePaths = new Set(allEntries.map(e => e.path));
+        const kept = [...selectedPaths].filter(p => visiblePaths.has(p));
+        if (kept.length !== selectedPaths.size) {
+          selectedPaths = new Set(kept);
+        }
+      }
 
       return {
         ...state,
@@ -465,8 +503,9 @@ export function reducer(state: FilePickerState, action: FilePickerAction): FileP
         filteredEntries,
         entryMap,
         focusedEntryName,
-        visibleFromIndex: 0,
-        visibleToIndex: Math.min(filteredEntries.length, maxHeight),
+        selectedPaths,
+        visibleFromIndex,
+        visibleToIndex,
       };
     }
   }
@@ -487,9 +526,16 @@ type InitArgs = {
 };
 
 function createInitialState(args: InitArgs): FilePickerState {
+  const rootPath = args.rootPath ? resolve(args.rootPath) : undefined;
+  // Clamp the starting path into the sandbox: an initialPath outside rootPath
+  // falls back to rootPath itself.
+  const currentPath = rootPath && !isWithinRoot(args.initialPath, rootPath)
+    ? rootPath
+    : args.initialPath;
+
   return {
     mode: 'loading',
-    currentPath: args.initialPath,
+    currentPath,
     pathHistory: [],
     rawEntries: [],
     allEntries: [],
@@ -507,7 +553,7 @@ function createInitialState(args: InitArgs): FilePickerState {
     multiSelect: args.multiSelect,
     fileTypes: args.fileTypes,
     filter: args.filter,
-    rootPath: args.rootPath ? resolve(args.rootPath) : undefined,
+    rootPath,
   };
 }
 

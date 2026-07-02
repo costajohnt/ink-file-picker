@@ -60,7 +60,12 @@ export type FilePickerProps = {
   /**
    * Sandbox navigation to this directory and its descendants. When set, the
    * user cannot navigate above it: Backspace / Left Arrow / parent navigation
-   * becomes a no-op once the current directory is at the root boundary.
+   * becomes a no-op at the root boundary, a symlink whose target escapes the
+   * root is not followed, and an `initialPath` outside the root is clamped back
+   * to the root.
+   *
+   * Read once at mount (unlike most other props, changing it at runtime has no
+   * effect).
    * @default undefined (no sandbox)
    */
   readonly rootPath?: string;
