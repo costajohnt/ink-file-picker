@@ -29,7 +29,7 @@ A filesystem navigation and file selection component for [Ink](https://github.co
 npm install ink-file-picker
 ```
 
-Peer dependencies: `ink` (>= 5.0.0) and `react` (>= 18.0.0).
+Peer dependencies: `ink` (>= 6.0.0) and `react` (>= 19.0.0). Requires Node.js >= 20.
 
 ## Quick Start
 
@@ -63,6 +63,7 @@ render(<App />);
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
 | `initialPath` | `string` | `process.cwd()` | Starting directory path |
+| `rootPath` | `string` | `undefined` | Sandbox navigation to this directory and its descendants. The user cannot navigate above it (parent navigation is a no-op at the boundary, escaping symlinks are not followed, an out-of-root `initialPath` is clamped to the root). Read once at mount. |
 | `filter` | `string \| (entry: FileEntry) => boolean` | `undefined` | Glob pattern or predicate function to filter visible entries. Glob is matched against entry names. Directories are always shown for navigation unless `fileTypes` is `'directories'`. |
 | `showHidden` | `boolean` | `false` | Show hidden files (dotfiles) |
 | `showDetails` | `boolean` | `false` | Show file size column |
@@ -116,6 +117,17 @@ You can also provide a `filter` prop for persistent filtering:
 
 In both cases, directories (and symlinks to directories) are always shown so you can still navigate into them.
 
+## Sandboxing Navigation
+
+Pass `rootPath` to confine the user to a directory subtree. Once at the root, Backspace, Left Arrow, and parent navigation become no-ops, so the user can never browse above it:
+
+```tsx
+// User can browse anywhere under /home/user/project but not escape it
+<FilePicker initialPath="/home/user/project/src" rootPath="/home/user/project" />
+```
+
+The sandbox also blocks the other escape routes: a symlink whose target resolves outside the root is not followed, and an `initialPath` outside the root is clamped back to the root. `rootPath` is read once at mount.
+
 ## Multi-Select Mode
 
 Enable `multiSelect` to let users select multiple files before confirming:
@@ -133,6 +145,8 @@ Enable `multiSelect` to let users select multiple files before confirming:
 - Press **Enter** to confirm and submit all selected paths
 - If no entries are toggled, pressing Enter on a file submits just that file
 - Selected entries are highlighted in the list
+
+If a `filter`, `fileTypes`, or `showHidden` change removes an already-selected entry from the list, that selection is dropped (it will not be returned by `onSelect`). Type-ahead filtering does not drop selections, since it only narrows the current view.
 
 ## File Types
 
@@ -266,7 +280,7 @@ import {
 
 ## Known Limitations
 
-- **Home/End key support relies on an Ink internal API.** Ink's public `useInput` hook does not expose Home and End key events. This component subscribes to `internal_eventEmitter` on Ink's stdin to capture the raw escape sequences for those keys. This works with current versions of Ink (v5.x) but could break if Ink changes or removes that internal emitter in a future release. If Home/End stop working after an Ink upgrade, this is the likely cause.
+- **Home/End key support relies on an Ink internal API.** Ink's public `useInput` hook does not expose Home and End key events. This component subscribes to `internal_eventEmitter` on Ink's stdin to capture the raw escape sequences for those keys. This works with current versions of Ink (v6.x) but could break if Ink changes or removes that internal emitter in a future release. If Home/End stop working after an Ink upgrade, this is the likely cause.
 
 ## Contributing
 

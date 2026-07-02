@@ -58,6 +58,19 @@ export type FilePickerProps = {
   readonly initialPath?: string;
 
   /**
+   * Sandbox navigation to this directory and its descendants. When set, the
+   * user cannot navigate above it: Backspace / Left Arrow / parent navigation
+   * becomes a no-op at the root boundary, a symlink whose target escapes the
+   * root is not followed, and an `initialPath` outside the root is clamped back
+   * to the root.
+   *
+   * Read once at mount (unlike most other props, changing it at runtime has no
+   * effect).
+   * @default undefined (no sandbox)
+   */
+  readonly rootPath?: string;
+
+  /**
    * Glob pattern or predicate function to filter visible entries.
    * Glob is matched against entry names (not full paths).
    * Only affects visibility -- directories needed for navigation are always shown

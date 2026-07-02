@@ -27,12 +27,13 @@ export function FilePicker(props: FilePickerProps) {
     onSelect,
     onCancel,
     onDirectoryChange,
-    showDetails = false,
-    multiSelect = false,
     theme: themeOverrides,
   } = props;
 
   const state = useFilePickerState(props);
+  // Read multiSelect/showDetails from reactive state (not props) so the render
+  // path and the keyboard path always agree, even when toggled at runtime.
+  const { multiSelect, showDetails } = state;
   useFilePicker({ isDisabled, state, onSelect, onCancel });
   useDirectoryReader({
     mode: state.mode,

@@ -14,6 +14,9 @@ export function useDirectoryReader({
   dispatch,
 }: UseDirectoryReaderProps) {
   const latestPathRef = useRef(currentPath);
+  // Deliberate "latest value" ref pattern so the async reader can detect a
+  // stale in-flight load; the write during render is intentional here.
+  // eslint-disable-next-line react-hooks/refs
   latestPathRef.current = currentPath;
 
   useEffect(() => {

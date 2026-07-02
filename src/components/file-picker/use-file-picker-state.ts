@@ -1,5 +1,5 @@
-import { useReducer, useCallback, useMemo } from 'react';
-import { dirname } from 'node:path';
+import { useReducer, useCallback, useMemo, useEffect, useRef } from 'react';
+import { dirname, resolve, relative, isAbsolute } from 'node:path';
 import picomatch from 'picomatch';
 import { EntryMap } from '../../lib/entry-map.js';
 import type {
@@ -16,6 +16,8 @@ export type FilePickerState = {
   mode: FilePickerMode;
   currentPath: string;
   pathHistory: string[];
+  /** Raw directory listing before static filters -- kept so config changes can re-filter. */
+  rawEntries: FileEntry[];
   allEntries: FileEntry[];
   filteredEntries: FileEntry[];
   entryMap: EntryMap;
@@ -31,6 +33,8 @@ export type FilePickerState = {
   multiSelect: boolean;
   fileTypes: FileTypeFilter;
   filter: EntryFilter | undefined;
+  /** Sandbox root; navigation cannot go above this path. Resolved to absolute. */
+  rootPath: string | undefined;
 };
 
 // --- Action Types ---
@@ -52,7 +56,18 @@ export type FilePickerAction =
   | { type: 'delete-filter-char' }
   | { type: 'clear-filter' }
   | { type: 'retry' }
-  | { type: 'cancel' };
+  | { type: 'cancel' }
+  | { type: 'sync-config'; config: ConfigProps };
+
+/** Props that may change at runtime and must stay in sync with reducer state. */
+export type ConfigProps = {
+  showHidden: boolean;
+  showDetails: boolean;
+  multiSelect: boolean;
+  fileTypes: FileTypeFilter;
+  filter: EntryFilter | undefined;
+  maxHeight: number;
+};
 
 // --- Helpers ---
 
@@ -110,18 +125,51 @@ function applyStaticFilters(
   return result;
 }
 
+/** Substring type-ahead filter shared by the filtering actions and config sync. */
+function applyTextFilter(entries: FileEntry[], filterText: string): FileEntry[] {
+  if (filterText.length === 0) return entries;
+  const needle = filterText.toLowerCase();
+  return entries.filter(e => e.name.toLowerCase().includes(needle));
+}
+
+/** True if `target` is `root` itself or a descendant of it. `root` must be absolute. */
+function isWithinRoot(target: string, root: string): boolean {
+  const resolvedTarget = resolve(target);
+  if (resolvedTarget === root) return true;
+  const rel = relative(root, resolvedTarget);
+  return rel !== '' && !rel.startsWith('..') && !isAbsolute(rel);
+}
+
+/** Shallow equality by entry identity (path), order-sensitive. */
+function sameEntries(a: FileEntry[], b: FileEntry[]): boolean {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    if (a[i]!.path !== b[i]!.path) return false;
+  }
+  return true;
+}
+
 // --- Reducer ---
 
 export function reducer(state: FilePickerState, action: FilePickerAction): FilePickerState {
   switch (action.type) {
-    case 'load-directory':
+    case 'load-directory': {
+      // A fresh navigation to an explicit path (e.g. initialPath changed):
+      // reset history and selection. Clamp into rootPath so a new initialPath
+      // outside the sandbox cannot escape it.
+      const targetPath = state.rootPath && !isWithinRoot(action.path, state.rootPath)
+        ? state.rootPath
+        : action.path;
       return {
         ...state,
         mode: 'loading',
-        currentPath: action.path,
+        currentPath: targetPath,
+        pathHistory: [],
+        selectedPaths: new Set<string>(),
         filterText: '',
         errorMessage: undefined,
       };
+    }
 
     case 'load-directory-success': {
       const allEntries = applyStaticFilters(action.entries, state);
@@ -133,6 +181,7 @@ export function reducer(state: FilePickerState, action: FilePickerAction): FileP
       return {
         ...state,
         mode: 'browsing',
+        rawEntries: action.entries,
         allEntries,
         filteredEntries: allEntries,
         entryMap,
@@ -164,6 +213,12 @@ export function reducer(state: FilePickerState, action: FilePickerAction): FileP
         ? entry.symlinkTarget
         : entry.path;
 
+      // Sandbox: a symlink target is an absolute realpath that can point
+      // anywhere, so refuse to follow one that escapes rootPath.
+      if (state.rootPath && !isWithinRoot(targetPath, state.rootPath)) {
+        return state;
+      }
+
       return {
         ...state,
         mode: 'loading',
@@ -181,6 +236,10 @@ export function reducer(state: FilePickerState, action: FilePickerAction): FileP
       const popped = history.pop();
       const targetPath = popped ?? dirname(state.currentPath);
       if (targetPath === state.currentPath) {
+        return state;
+      }
+      // Sandbox: refuse to navigate above rootPath.
+      if (state.rootPath && !isWithinRoot(targetPath, state.rootPath)) {
         return state;
       }
       return {
@@ -372,6 +431,83 @@ export function reducer(state: FilePickerState, action: FilePickerAction): FileP
         return reducer(state, { type: 'clear-filter' });
       }
       return state;
+
+    case 'sync-config': {
+      const { showHidden, showDetails, multiSelect, fileTypes, filter, maxHeight } = action.config;
+
+      // Re-derive the visible listing from the raw directory contents using the
+      // new config, preserving any active type-ahead filter.
+      const allEntries = applyStaticFilters(state.rawEntries, { showHidden, fileTypes, filter });
+      allEntries.sort(compareEntries);
+      const filteredEntries = applyTextFilter(allEntries, state.filterText);
+
+      const scalarsUnchanged =
+        state.showHidden === showHidden &&
+        state.showDetails === showDetails &&
+        state.multiSelect === multiSelect &&
+        state.fileTypes === fileTypes &&
+        state.visibleEntryCount === maxHeight;
+
+      // No effective change (e.g. an inline filter function with identical
+      // behavior re-created each render) -- return the same reference so React
+      // bails out and we avoid a render loop.
+      if (
+        scalarsUnchanged &&
+        sameEntries(state.allEntries, allEntries) &&
+        sameEntries(state.filteredEntries, filteredEntries)
+      ) {
+        return state;
+      }
+
+      const entryMap = new EntryMap(filteredEntries);
+      const focusedIndex = filteredEntries.findIndex(e => e.name === state.focusedEntryName);
+      const focusSurvives = focusedIndex !== -1;
+      const focusedEntryName = focusSurvives ? state.focusedEntryName : entryMap.first?.name;
+
+      // Keep the focused row on-screen: preserve the old scroll offset when it
+      // still contains the focused index, otherwise clamp the window around it.
+      // Reset to the top only when the focused entry no longer exists.
+      let visibleFromIndex = 0;
+      if (focusSurvives) {
+        visibleFromIndex = state.visibleFromIndex;
+        if (focusedIndex < visibleFromIndex) {
+          visibleFromIndex = focusedIndex;
+        } else if (focusedIndex >= visibleFromIndex + maxHeight) {
+          visibleFromIndex = focusedIndex - maxHeight + 1;
+        }
+        visibleFromIndex = Math.max(0, Math.min(visibleFromIndex, Math.max(0, filteredEntries.length - maxHeight)));
+      }
+      const visibleToIndex = Math.min(filteredEntries.length, visibleFromIndex + maxHeight);
+
+      // Drop selections no longer present in the statically-filtered list (a
+      // filter/fileTypes/showHidden change made them non-selectable); type-ahead
+      // narrowing does not prune because it does not affect allEntries.
+      let selectedPaths = state.selectedPaths;
+      if (selectedPaths.size > 0) {
+        const visiblePaths = new Set(allEntries.map(e => e.path));
+        const kept = [...selectedPaths].filter(p => visiblePaths.has(p));
+        if (kept.length !== selectedPaths.size) {
+          selectedPaths = new Set(kept);
+        }
+      }
+
+      return {
+        ...state,
+        showHidden,
+        showDetails,
+        multiSelect,
+        fileTypes,
+        filter,
+        visibleEntryCount: maxHeight,
+        allEntries,
+        filteredEntries,
+        entryMap,
+        focusedEntryName,
+        selectedPaths,
+        visibleFromIndex,
+        visibleToIndex,
+      };
+    }
   }
 }
 
@@ -385,13 +521,23 @@ type InitArgs = {
   multiSelect: boolean;
   fileTypes: FileTypeFilter;
   filter: EntryFilter | undefined;
+  /** Sandbox root; navigation cannot go above this path. Resolved to absolute. */
+  rootPath: string | undefined;
 };
 
 function createInitialState(args: InitArgs): FilePickerState {
+  const rootPath = args.rootPath ? resolve(args.rootPath) : undefined;
+  // Clamp the starting path into the sandbox: an initialPath outside rootPath
+  // falls back to rootPath itself.
+  const currentPath = rootPath && !isWithinRoot(args.initialPath, rootPath)
+    ? rootPath
+    : args.initialPath;
+
   return {
     mode: 'loading',
-    currentPath: args.initialPath,
+    currentPath,
     pathHistory: [],
+    rawEntries: [],
     allEntries: [],
     filteredEntries: [],
     entryMap: new EntryMap([]),
@@ -407,6 +553,7 @@ function createInitialState(args: InitArgs): FilePickerState {
     multiSelect: args.multiSelect,
     fileTypes: args.fileTypes,
     filter: args.filter,
+    rootPath,
   };
 }
 
@@ -425,6 +572,7 @@ export type FilePickerStateAPI = {
   visibleFromIndex: number;
   visibleToIndex: number;
   multiSelect: boolean;
+  showDetails: boolean;
   fileTypes: FileTypeFilter;
 
   focusNext: () => void;
@@ -457,12 +605,35 @@ export function useFilePickerState(props: FilePickerProps): FilePickerStateAPI {
     multiSelect = false,
     fileTypes = 'all',
     filter,
+    rootPath,
   } = props;
 
   const [state, dispatch] = useReducer(reducer, {
     initialPath, maxHeight, showHidden, showDetails,
-    multiSelect, fileTypes, filter,
+    multiSelect, fileTypes, filter, rootPath,
   }, createInitialState);
+
+  // Keep reducer state in sync with config props that may change after mount.
+  // sync-config re-derives the filtered listing and returns the same state
+  // reference when nothing effectively changed, so an inline `filter` function
+  // re-created each render does not cause a render loop.
+  useEffect(() => {
+    dispatch({
+      type: 'sync-config',
+      config: { showHidden, showDetails, multiSelect, fileTypes, filter, maxHeight },
+    });
+  }, [showHidden, showDetails, multiSelect, fileTypes, filter, maxHeight]);
+
+  // Navigate to a new initialPath when it changes (but not on first mount --
+  // createInitialState already seeded currentPath from it).
+  const didMount = useRef(false);
+  useEffect(() => {
+    if (!didMount.current) {
+      didMount.current = true;
+      return;
+    }
+    dispatch({ type: 'load-directory', path: initialPath });
+  }, [initialPath]);
 
   const focusNext = useCallback(() => dispatch({ type: 'focus-next' }), []);
   const focusPrevious = useCallback(() => dispatch({ type: 'focus-previous' }), []);
@@ -507,6 +678,7 @@ export function useFilePickerState(props: FilePickerProps): FilePickerStateAPI {
     visibleFromIndex: state.visibleFromIndex,
     visibleToIndex: state.visibleToIndex,
     multiSelect: state.multiSelect,
+    showDetails: state.showDetails,
     fileTypes: state.fileTypes,
 
     focusNext,

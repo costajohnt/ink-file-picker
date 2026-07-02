@@ -58,6 +58,10 @@ export function useFilePicker({
     return () => {
       internal_eventEmitter?.removeListener('input', handleRawInput);
     };
+    // Intentionally depend on the specific stable callbacks, not the whole
+    // `state` object, so this raw-input listener is not re-subscribed on every
+    // state change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isDisabled, state.mode, state.focusFirst, state.focusLast, internal_eventEmitter]);
 
   useInput(
