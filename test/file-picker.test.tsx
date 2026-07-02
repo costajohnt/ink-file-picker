@@ -533,22 +533,31 @@ describe('FilePicker', () => {
       mockReadDirectory.mockResolvedValue(entries);
 
       // The "N more below" indicator reflects the window size directly and is
-      // robust to the row layout truncating entry names.
-      const moreBelow = (frame: string): number => {
-        const match = /(\d+) more below/.exec(frame.replaceAll(/\s+/g, ' '));
-        return Number(match?.[1] ?? '0');
-      };
+      // robust to the row layout truncating entry names. Strip ANSI colours and
+      // all whitespace so the check works under FORCE_COLOR (the indicator may
+      // wrap across lines, each re-wrapped in escape codes).
+      const ansi = new RegExp(String.raw`${String.fromCodePoint(27)}\[[0-9;]*m`, 'g');
+      const compact = (frame: string): string => frame.replaceAll(ansi, '').replaceAll(/\s+/g, '');
 
       const { lastFrame, rerender } = render(
         <FilePicker initialPath="/mock" maxHeight={5} />
       );
 
-      await delay();
-      expect(moreBelow(lastFrame()!)).toBe(15); // 20 - 5 visible
+      const hasBelow = (n: number): boolean => compact(lastFrame() ?? '').includes(`${n}morebelow`);
+      const waitForBelow = async (n: number): Promise<void> => {
+        const start = Date.now();
+        while (Date.now() - start < 2000) {
+          if (hasBelow(n)) return;
+          await delay(10);
+        }
+      };
+
+      await waitForBelow(15);
+      expect(hasBelow(15)).toBe(true); // 20 - 5 visible
 
       rerender(<FilePicker initialPath="/mock" maxHeight={12} />);
-      await delay();
-      expect(moreBelow(lastFrame()!)).toBe(8); // 20 - 12 visible
+      await waitForBelow(8);
+      expect(hasBelow(8)).toBe(true); // 20 - 12 visible
     });
 
     it('applies fileTypes changes at runtime', async () => {
