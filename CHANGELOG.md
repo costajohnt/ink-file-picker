@@ -8,8 +8,10 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
-- `rootPath` prop to sandbox navigation to a directory subtree; parent
-  navigation becomes a no-op at the root boundary
+- `rootPath` prop (read at mount) to sandbox navigation to a directory subtree:
+  parent navigation is a no-op at the root boundary, symlinks whose targets
+  escape the root are not followed, and an out-of-root `initialPath` is clamped
+  back to the root
 - Config props (`filter`, `showHidden`, `fileTypes`, `multiSelect`,
   `showDetails`, `maxHeight`, `initialPath`) are now reactive: changing them
   after mount updates the picker instead of being silently ignored
@@ -20,6 +22,9 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 - Runtime prop changes were frozen at mount; `multiSelect`/`showDetails` could
   render from live props while the keyboard path read stale reducer state
+- Reacting to a config change keeps the focused entry on-screen instead of
+  stranding it outside the scroll window, and drops selections that the change
+  removes from the list
 - `truncatePath` now splits on the platform path separator, so display
   truncation is correct on Windows
 - Symlink target resolution (`realpath` + `stat`) is now concurrency-bounded so
