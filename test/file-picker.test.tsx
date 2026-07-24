@@ -33,8 +33,79 @@ const defaultEntries: FileEntry[] = [
   makeEntry('.gitignore'),
 ];
 
-async function delay(ms = 50): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, ms));
+// Strip ANSI colour codes so content checks hold under FORCE_COLOR.
+const ansiPattern = new RegExp(String.raw`${String.fromCodePoint(27)}\[[0-9;]*m`, 'g');
+
+function stripAnsi(frame: string | undefined): string {
+  return (frame ?? '').replaceAll(ansiPattern, '');
+}
+
+/**
+ * Poll until `assertion` stops throwing, or fail with its last error after
+ * `timeoutMs`. Deterministic replacement for fixed sleeps: passes as soon as
+ * the condition holds, only times out when the condition genuinely never does.
+ *
+ * After the condition holds, flush a few macrotask turns: ink's `useInput`
+ * re-attaches its stdin listener in a passive effect after every render, so a
+ * keypress written the instant a new frame is visible (commit happens before
+ * effects) can be dropped. The flush lets effects settle before the caller's
+ * next `stdin.write`.
+ */
+async function waitFor(assertion: () => void, timeoutMs = 5000): Promise<void> {
+  const start = Date.now();
+  for (;;) {
+    try {
+      assertion();
+      break;
+    } catch (error) {
+      if (Date.now() - start >= timeoutMs) throw error;
+      await new Promise(resolve => {
+        setTimeout(resolve, 10);
+      });
+    }
+  }
+
+  await settle();
+}
+
+/** Poll until the (ANSI-stripped) frame satisfies `matcher`. */
+async function waitForFrame(
+  lastFrame: () => string | undefined,
+  matcher: (plainFrame: string) => boolean,
+  timeoutMs = 2000,
+): Promise<void> {
+  await waitFor(() => {
+    const plain = stripAnsi(lastFrame());
+    if (!matcher(plain)) {
+      throw new Error(`Frame did not match:\n${plain}`);
+    }
+  }, timeoutMs);
+}
+
+/** Run `action` (e.g. a keypress) and poll until the frame re-renders. */
+async function frameChange(lastFrame: () => string | undefined, action: () => void): Promise<void> {
+  const before = lastFrame();
+  action();
+  await waitFor(() => {
+    if (lastFrame() === before) {
+      throw new Error('Frame did not change');
+    }
+  });
+}
+
+/**
+ * Flush a handful of macrotask turns so pending renders, effects, and mocked
+ * (immediately-resolving) promises settle. Only used before NEGATIVE
+ * assertions, where there is no positive condition to poll for. All async
+ * work in these tests is microtask/timer-0 based, so a fixed number of
+ * event-loop turns is deterministic regardless of machine load.
+ */
+async function settle(turns = 10): Promise<void> {
+  for (let i = 0; i < turns; i++) {
+    await new Promise(resolve => {
+      setTimeout(resolve, 0);
+    });
+  }
 }
 
 beforeEach(() => {
@@ -58,12 +129,8 @@ describe('FilePicker', () => {
         <FilePicker initialPath="/mock" />
       );
 
-      await delay();
-
-      const frame = lastFrame();
-      expect(frame).toContain('src');
-      expect(frame).toContain('package.json');
-      expect(frame).toContain('README.md');
+      await waitForFrame(lastFrame, frame =>
+        frame.includes('src') && frame.includes('package.json') && frame.includes('README.md'));
     });
 
     it('shows directories before files', async () => {
@@ -71,7 +138,7 @@ describe('FilePicker', () => {
         <FilePicker initialPath="/mock" />
       );
 
-      await delay();
+      await waitForFrame(lastFrame, frame => frame.includes('package.json'));
 
       const frame = lastFrame();
       // node_modules/ and src/ should appear before package.json and README.md
@@ -85,11 +152,8 @@ describe('FilePicker', () => {
         <FilePicker initialPath="/mock" />
       );
 
-      await delay();
-
-      const frame = lastFrame();
       // First directory alphabetically is node_modules
-      expect(frame).toContain('>');
+      await waitForFrame(lastFrame, frame => frame.includes('>'));
     });
 
     it('hides hidden files by default', async () => {
@@ -97,10 +161,8 @@ describe('FilePicker', () => {
         <FilePicker initialPath="/mock" />
       );
 
-      await delay();
-
-      const frame = lastFrame();
-      expect(frame).not.toContain('.gitignore');
+      await waitForFrame(lastFrame, frame => frame.includes('src'));
+      expect(lastFrame()).not.toContain('.gitignore');
     });
 
     it('shows hidden files when showHidden is true', async () => {
@@ -108,10 +170,7 @@ describe('FilePicker', () => {
         <FilePicker initialPath="/mock" showHidden />
       );
 
-      await delay();
-
-      const frame = lastFrame();
-      expect(frame).toContain('.gitignore');
+      await waitForFrame(lastFrame, frame => frame.includes('.gitignore'));
     });
 
     it('shows empty directory message when no entries', async () => {
@@ -121,10 +180,7 @@ describe('FilePicker', () => {
         <FilePicker initialPath="/mock" />
       );
 
-      await delay();
-
-      const frame = lastFrame();
-      expect(frame).toContain('Empty directory');
+      await waitForFrame(lastFrame, frame => frame.includes('Empty directory'));
     });
 
     it('shows error message on read failure', async () => {
@@ -134,11 +190,7 @@ describe('FilePicker', () => {
         <FilePicker initialPath="/mock" />
       );
 
-      await delay();
-
-      const frame = lastFrame();
-      expect(frame).toContain('Error');
-      expect(frame).toContain('EACCES');
+      await waitForFrame(lastFrame, frame => frame.includes('Error') && frame.includes('EACCES'));
     });
   });
 
@@ -148,15 +200,12 @@ describe('FilePicker', () => {
         <FilePicker initialPath="/mock" />
       );
 
-      await delay();
+      await waitForFrame(lastFrame, frame => frame.includes('node_modules'));
 
-      // Arrow down
-      stdin.write('\x1B[B');
-      await delay();
+      // Arrow down moves focus to the second entry (frame re-renders)
+      await frameChange(lastFrame, () => stdin.write('\x1B[B'));
 
-      const frame = lastFrame();
-      // Should have moved focus to the second entry
-      expect(frame).toBeDefined();
+      expect(lastFrame()).toBeDefined();
     });
 
     it('moves focus up with arrow up', async () => {
@@ -164,16 +213,13 @@ describe('FilePicker', () => {
         <FilePicker initialPath="/mock" />
       );
 
-      await delay();
+      await waitForFrame(lastFrame, frame => frame.includes('node_modules'));
 
       // Go down then up
-      stdin.write('\x1B[B');
-      await delay();
-      stdin.write('\x1B[A');
-      await delay();
+      await frameChange(lastFrame, () => stdin.write('\x1B[B'));
+      await frameChange(lastFrame, () => stdin.write('\x1B[A'));
 
-      const frame = lastFrame();
-      expect(frame).toBeDefined();
+      expect(lastFrame()).toBeDefined();
     });
 
     it('jumps to the last entry with End and back to the first with Home', async () => {
@@ -181,25 +227,20 @@ describe('FilePicker', () => {
         <FilePicker initialPath="/mock" />
       );
 
-      await delay();
+      await waitForFrame(lastFrame, frame => frame.includes('node_modules'));
 
       // Entries can render in a single row, so assert the focus marker `>`
       // sits immediately before the focused entry, not merely on the frame.
-      // Strip ANSI colour codes so the adjacency check holds under FORCE_COLOR.
-      const ansi = new RegExp(String.raw`${String.fromCodePoint(27)}\[[0-9;]*m`, 'g');
-      const plain = (): string => (lastFrame() ?? '').replaceAll(ansi, '');
 
       // End (CSI F) — focus jumps to the last visible entry (README.md:
       // directories sort first, .gitignore is hidden by default)
       stdin.write('\x1B[F');
-      await delay();
-      expect(plain()).toMatch(/>\s*README\.md/);
+      await waitForFrame(lastFrame, frame => />\s*README\.md/.test(frame));
 
       // Home (CSI H) — focus returns to the first entry
       stdin.write('\x1B[H');
-      await delay();
-      expect(plain()).toMatch(/>\s*›\s*node_modules/);
-      expect(plain()).not.toMatch(/>\s*README\.md/);
+      await waitForFrame(lastFrame, frame => />\s*›\s*node_modules/.test(frame));
+      expect(stripAnsi(lastFrame())).not.toMatch(/>\s*README\.md/);
     });
 
     it('enters directory on Enter', async () => {
@@ -213,15 +254,14 @@ describe('FilePicker', () => {
         <FilePicker initialPath="/mock" />
       );
 
-      await delay();
+      await waitForFrame(lastFrame, frame => frame.includes('node_modules'));
 
       // First focused entry should be 'node_modules' (alphabetically first dir)
       // Press Enter to navigate in
       stdin.write('\r');
-      await delay();
 
-      // Should have called readDirectory again
-      expect(mockReadDirectory).toHaveBeenCalledTimes(2);
+      // Should call readDirectory again
+      await waitFor(() => expect(mockReadDirectory).toHaveBeenCalledTimes(2));
     });
 
     it('goes to parent on Backspace', async () => {
@@ -230,17 +270,16 @@ describe('FilePicker', () => {
         .mockResolvedValueOnce(defaultEntries)
         .mockResolvedValueOnce(parentEntries);
 
-      const { stdin } = render(
+      const { lastFrame, stdin } = render(
         <FilePicker initialPath="/mock" />
       );
 
-      await delay();
+      await waitForFrame(lastFrame, frame => frame.includes('node_modules'));
 
       // Backspace to go to parent
       stdin.write('\x7F');
-      await delay();
 
-      expect(mockReadDirectory).toHaveBeenCalledTimes(2);
+      await waitFor(() => expect(mockReadDirectory).toHaveBeenCalledTimes(2));
     });
   });
 
@@ -250,32 +289,31 @@ describe('FilePicker', () => {
       const entries = [makeEntry('file.ts')];
       mockReadDirectory.mockResolvedValue(entries);
 
-      const { stdin } = render(
+      const { lastFrame, stdin } = render(
         <FilePicker initialPath="/mock" onSelect={onSelect} />
       );
 
-      await delay();
+      await waitForFrame(lastFrame, frame => frame.includes('file.ts'));
 
       // Enter on the file
       stdin.write('\r');
-      await delay();
 
-      expect(onSelect).toHaveBeenCalledWith(['/mock/file.ts']);
+      await waitFor(() => expect(onSelect).toHaveBeenCalledWith(['/mock/file.ts']));
     });
 
     it('does not call onSelect when Enter on directory (navigates instead)', async () => {
       const onSelect = vi.fn();
       mockReadDirectory.mockResolvedValue(defaultEntries);
 
-      const { stdin } = render(
+      const { lastFrame, stdin } = render(
         <FilePicker initialPath="/mock" onSelect={onSelect} />
       );
 
-      await delay();
+      await waitForFrame(lastFrame, frame => frame.includes('node_modules'));
 
-      // First entry is a directory; Enter navigates
+      // First entry is a directory; Enter navigates (second readDirectory call)
       stdin.write('\r');
-      await delay();
+      await waitFor(() => expect(mockReadDirectory).toHaveBeenCalledTimes(2));
 
       expect(onSelect).not.toHaveBeenCalled();
     });
@@ -290,14 +328,12 @@ describe('FilePicker', () => {
         <FilePicker initialPath="/mock" multiSelect />
       );
 
-      await delay();
+      await waitForFrame(lastFrame, frame => frame.includes('file1.ts'));
 
       // Space to toggle selection
       stdin.write(' ');
-      await delay();
 
-      const frame = lastFrame();
-      expect(frame).toContain('[x]');
+      await waitForFrame(lastFrame, frame => frame.includes('[x]'));
     });
 
     it('calls onSelect with all selected paths on Enter', async () => {
@@ -305,23 +341,24 @@ describe('FilePicker', () => {
       const entries = [makeEntry('file1.ts'), makeEntry('file2.ts')];
       mockReadDirectory.mockResolvedValue(entries);
 
-      const { stdin } = render(
+      const { lastFrame, stdin } = render(
         <FilePicker initialPath="/mock" multiSelect onSelect={onSelect} />
       );
 
-      await delay();
+      await waitForFrame(lastFrame, frame => frame.includes('file1.ts'));
 
-      // Select first, move down, select second, then Enter
+      // Select first, move down, select second, then Enter. Wait for each
+      // keypress to render before the next: the input handler reads focus and
+      // selection state from its render closure.
       stdin.write(' ');
-      await delay();
-      stdin.write('\x1B[B');
-      await delay();
+      await waitForFrame(lastFrame, frame => frame.includes('[x]'));
+      await frameChange(lastFrame, () => stdin.write('\x1B[B'));
       stdin.write(' ');
-      await delay();
+      await waitForFrame(lastFrame, frame => (frame.match(/\[x]/g) ?? []).length === 2);
       stdin.write('\r');
-      await delay();
 
-      expect(onSelect).toHaveBeenCalledWith(['/mock/file1.ts', '/mock/file2.ts']);
+      await waitFor(() =>
+        expect(onSelect).toHaveBeenCalledWith(['/mock/file1.ts', '/mock/file2.ts']));
     });
   });
 
@@ -331,14 +368,11 @@ describe('FilePicker', () => {
         <FilePicker initialPath="/mock" />
       );
 
-      await delay();
+      await waitForFrame(lastFrame, frame => frame.includes('node_modules'));
 
       stdin.write('/');
-      await delay();
 
-      const frame = lastFrame();
-      expect(frame).toContain('/');
-      expect(frame).toContain('clear filter');
+      await waitForFrame(lastFrame, frame => frame.includes('/') && frame.includes('clear filter'));
     });
 
     it('filters entries by typed text', async () => {
@@ -346,20 +380,17 @@ describe('FilePicker', () => {
         <FilePicker initialPath="/mock" />
       );
 
-      await delay();
+      await waitForFrame(lastFrame, frame => frame.includes('node_modules'));
 
-      // Type 'pack' to filter
-      stdin.write('p');
-      await delay();
-      stdin.write('a');
-      await delay();
-      stdin.write('c');
-      await delay();
-      stdin.write('k');
-      await delay();
+      // Type 'pack' to filter, waiting for each char to render (the handler
+      // reads filter mode from its render closure)
+      await frameChange(lastFrame, () => stdin.write('p'));
+      await frameChange(lastFrame, () => stdin.write('a'));
+      await frameChange(lastFrame, () => stdin.write('c'));
+      await frameChange(lastFrame, () => stdin.write('k'));
 
-      const frame = lastFrame();
-      expect(frame).toContain('package.json');
+      await waitForFrame(lastFrame, frame =>
+        frame.includes('package.json') && !frame.includes('README.md'));
     });
 
     it('clears filter on Escape', async () => {
@@ -367,21 +398,17 @@ describe('FilePicker', () => {
         <FilePicker initialPath="/mock" />
       );
 
-      await delay();
+      await waitForFrame(lastFrame, frame => frame.includes('node_modules'));
 
-      // Enter filter mode
+      // Enter filter mode and type a non-matching char
       stdin.write('/');
-      await delay();
-      stdin.write('x');
-      await delay();
+      await waitForFrame(lastFrame, frame => frame.includes('clear filter'));
+      await frameChange(lastFrame, () => stdin.write('x'));
 
-      // Escape clears filter
+      // Escape clears filter; back to browsing with all entries visible
       stdin.write('\x1B');
-      await delay();
-
-      const frame = lastFrame();
-      // Should be back to browsing with all entries visible
-      expect(frame).toContain('src');
+      await waitForFrame(lastFrame, frame =>
+        frame.includes('src') && !frame.includes('clear filter'));
     });
 
     it('shows "No matches" when filter has no results', async () => {
@@ -392,18 +419,12 @@ describe('FilePicker', () => {
         <FilePicker initialPath="/mock" />
       );
 
-      await delay();
+      await waitForFrame(lastFrame, frame => frame.includes('file.ts'));
 
       // Type something that doesn't match
       stdin.write('z');
-      await delay();
-      stdin.write('z');
-      await delay();
-      stdin.write('z');
-      await delay();
 
-      const frame = lastFrame();
-      expect(frame).toContain('No matches');
+      await waitForFrame(lastFrame, frame => frame.includes('No matches'));
     });
   });
 
@@ -411,34 +432,34 @@ describe('FilePicker', () => {
     it('calls onCancel on Escape in browse mode', async () => {
       const onCancel = vi.fn();
 
-      const { stdin } = render(
+      const { lastFrame, stdin } = render(
         <FilePicker initialPath="/mock" onCancel={onCancel} />
       );
 
-      await delay();
+      await waitForFrame(lastFrame, frame => frame.includes('node_modules'));
 
       stdin.write('\x1B');
-      await delay();
 
-      expect(onCancel).toHaveBeenCalled();
+      await waitFor(() => expect(onCancel).toHaveBeenCalled());
     });
 
     it('clears filter (not cancel) on Escape in filter mode', async () => {
       const onCancel = vi.fn();
 
-      const { stdin } = render(
+      const { lastFrame, stdin } = render(
         <FilePicker initialPath="/mock" onCancel={onCancel} />
       );
 
-      await delay();
+      await waitForFrame(lastFrame, frame => frame.includes('node_modules'));
 
-      // Enter filter mode
+      // Enter filter mode (wait for the mode change to render: the Escape
+      // handler branches on mode from its render closure)
       stdin.write('/');
-      await delay();
+      await waitForFrame(lastFrame, frame => frame.includes('clear filter'));
 
       // Escape should clear filter, not cancel
       stdin.write('\x1B');
-      await delay();
+      await waitForFrame(lastFrame, frame => !frame.includes('clear filter'));
 
       expect(onCancel).not.toHaveBeenCalled();
     });
@@ -448,16 +469,16 @@ describe('FilePicker', () => {
     it('does not navigate above rootPath on Backspace', async () => {
       mockReadDirectory.mockResolvedValue(defaultEntries);
 
-      const { stdin } = render(
+      const { lastFrame, stdin } = render(
         <FilePicker initialPath="/mock" rootPath="/mock" />
       );
 
-      await delay();
+      await waitForFrame(lastFrame, frame => frame.includes('node_modules'));
       expect(mockReadDirectory).toHaveBeenCalledTimes(1);
 
       // Backspace at the root boundary is a no-op: no re-read.
       stdin.write('\x7F');
-      await delay();
+      await settle();
 
       expect(mockReadDirectory).toHaveBeenCalledTimes(1);
     });
@@ -469,24 +490,25 @@ describe('FilePicker', () => {
         .mockResolvedValueOnce(childEntries)     // /mock/src
         .mockResolvedValueOnce(defaultEntries);  // back to /mock
 
-      const { stdin } = render(
+      const { lastFrame, stdin } = render(
         <FilePicker initialPath="/mock" rootPath="/mock" />
       );
 
-      await delay();
+      await waitForFrame(lastFrame, frame => frame.includes('node_modules'));
+
       // Enter first directory (node_modules, alphabetically first)
       stdin.write('\r');
-      await delay();
-      expect(mockReadDirectory).toHaveBeenCalledTimes(2);
+      await waitFor(() => expect(mockReadDirectory).toHaveBeenCalledTimes(2));
+      await waitForFrame(lastFrame, frame => frame.includes('index.ts'));
 
       // Backspace: allowed, we are below root
       stdin.write('\x7F');
-      await delay();
-      expect(mockReadDirectory).toHaveBeenCalledTimes(3);
+      await waitFor(() => expect(mockReadDirectory).toHaveBeenCalledTimes(3));
+      await waitForFrame(lastFrame, frame => frame.includes('node_modules'));
 
       // Backspace again: now at root, no-op
       stdin.write('\x7F');
-      await delay();
+      await settle();
       expect(mockReadDirectory).toHaveBeenCalledTimes(3);
     });
   });
@@ -500,15 +522,13 @@ describe('FilePicker', () => {
         <FilePicker initialPath="/mock" filter="*.ts" />
       );
 
-      await delay();
-      expect(lastFrame()).toContain('alpha.ts');
-      expect(lastFrame()).not.toContain('bravo.md');
+      await waitForFrame(lastFrame, frame =>
+        frame.includes('alpha.ts') && !frame.includes('bravo.md'));
 
       rerender(<FilePicker initialPath="/mock" filter="*.md" />);
-      await delay();
 
-      expect(lastFrame()).toContain('bravo.md');
-      expect(lastFrame()).not.toContain('alpha.ts');
+      await waitForFrame(lastFrame, frame =>
+        frame.includes('bravo.md') && !frame.includes('alpha.ts'));
     });
 
     it('re-filters hidden files when showHidden changes at runtime', async () => {
@@ -518,13 +538,12 @@ describe('FilePicker', () => {
         <FilePicker initialPath="/mock" />
       );
 
-      await delay();
-      expect(lastFrame()).not.toContain('.gitignore');
+      await waitForFrame(lastFrame, frame =>
+        frame.includes('src') && !frame.includes('.gitignore'));
 
       rerender(<FilePicker initialPath="/mock" showHidden />);
-      await delay();
 
-      expect(lastFrame()).toContain('.gitignore');
+      await waitForFrame(lastFrame, frame => frame.includes('.gitignore'));
     });
 
     it('makes Space toggle selection when multiSelect is enabled at runtime', async () => {
@@ -535,19 +554,18 @@ describe('FilePicker', () => {
         <FilePicker initialPath="/mock" />
       );
 
-      await delay();
       // multiSelect off: no checkboxes rendered
-      expect(lastFrame()).not.toContain('[ ]');
+      await waitForFrame(lastFrame, frame =>
+        frame.includes('file1.ts') && !frame.includes('[ ]'));
 
       rerender(<FilePicker initialPath="/mock" multiSelect />);
-      await delay();
+
       // checkboxes now render (render path picks up the change)
-      expect(lastFrame()).toContain('[ ]');
+      await waitForFrame(lastFrame, frame => frame.includes('[ ]'));
 
       // Space now toggles selection (keyboard path reads the same reactive value)
       stdin.write(' ');
-      await delay();
-      expect(lastFrame()).toContain('[x]');
+      await waitForFrame(lastFrame, frame => frame.includes('[x]'));
     });
   });
 
@@ -562,28 +580,19 @@ describe('FilePicker', () => {
       // robust to the row layout truncating entry names. Strip ANSI colours and
       // all whitespace so the check works under FORCE_COLOR (the indicator may
       // wrap across lines, each re-wrapped in escape codes).
-      const ansi = new RegExp(String.raw`${String.fromCodePoint(27)}\[[0-9;]*m`, 'g');
-      const compact = (frame: string): string => frame.replaceAll(ansi, '').replaceAll(/\s+/g, '');
+      const compact = (frame: string): string => frame.replaceAll(/\s+/g, '');
 
       const { lastFrame, rerender } = render(
         <FilePicker initialPath="/mock" maxHeight={5} />
       );
 
-      const hasBelow = (n: number): boolean => compact(lastFrame() ?? '').includes(`${n}morebelow`);
-      const waitForBelow = async (n: number): Promise<void> => {
-        const start = Date.now();
-        while (Date.now() - start < 2000) {
-          if (hasBelow(n)) return;
-          await delay(10);
-        }
-      };
-
-      await waitForBelow(15);
-      expect(hasBelow(15)).toBe(true); // 20 - 5 visible
+      // 20 - 5 visible
+      await waitForFrame(lastFrame, frame => compact(frame).includes('15morebelow'));
 
       rerender(<FilePicker initialPath="/mock" maxHeight={12} />);
-      await waitForBelow(8);
-      expect(hasBelow(8)).toBe(true); // 20 - 12 visible
+
+      // 20 - 12 visible
+      await waitForFrame(lastFrame, frame => compact(frame).includes('8morebelow'));
     });
 
     it('applies fileTypes changes at runtime', async () => {
@@ -594,13 +603,12 @@ describe('FilePicker', () => {
         <FilePicker initialPath="/mock" />
       );
 
-      await delay();
-      expect(lastFrame()).toContain('file.ts');
+      await waitForFrame(lastFrame, frame => frame.includes('file.ts'));
 
       rerender(<FilePicker initialPath="/mock" fileTypes="directories" />);
-      await delay();
-      expect(lastFrame()).not.toContain('file.ts');
-      expect(lastFrame()).toContain('dir');
+
+      await waitForFrame(lastFrame, frame =>
+        frame.includes('dir') && !frame.includes('file.ts'));
     });
 
     it('does not loop when given a fresh inline filter each render', async () => {
@@ -611,12 +619,12 @@ describe('FilePicker', () => {
         <FilePicker initialPath="/mock" filter={entry => entry.name.endsWith('.ts')} />
       );
 
-      await delay();
+      await waitForFrame(lastFrame, frame => frame.includes('alpha.ts'));
       const frame1 = lastFrame();
 
       // New inline arrow instance each render -- must not thrash / loop.
       rerender(<FilePicker initialPath="/mock" filter={entry => entry.name.endsWith('.ts')} />);
-      await delay();
+      await settle();
 
       expect(lastFrame()).toBe(frame1);
       expect(lastFrame()).toContain('alpha.ts');
@@ -634,15 +642,13 @@ describe('FilePicker', () => {
         <FilePicker initialPath="/mock" />
       );
 
-      await delay();
-      expect(lastFrame()).toContain('src');
+      await waitForFrame(lastFrame, frame => frame.includes('src'));
 
       rerender(<FilePicker initialPath="/other" />);
-      await delay();
 
+      await waitForFrame(lastFrame, frame =>
+        frame.includes('other.ts') && !frame.includes('src'));
       expect(mockReadDirectory).toHaveBeenCalledWith('/other');
-      expect(lastFrame()).toContain('other.ts');
-      expect(lastFrame()).not.toContain('src');
     });
 
     it('surfaces error mode when a new initialPath fails to read', async () => {
@@ -654,41 +660,39 @@ describe('FilePicker', () => {
         <FilePicker initialPath="/mock" />
       );
 
-      await delay();
+      await waitForFrame(lastFrame, frame => frame.includes('src'));
       rerender(<FilePicker initialPath="/bad" />);
-      await delay();
 
-      expect(lastFrame()).toContain('Error');
-      expect(lastFrame()).toContain('EACCES');
+      await waitForFrame(lastFrame, frame =>
+        frame.includes('Error') && frame.includes('EACCES'));
     });
 
     it('clamps an out-of-root initialPath to rootPath at mount', async () => {
       mockReadDirectory.mockResolvedValue(defaultEntries);
 
       render(<FilePicker initialPath="/etc/somewhere" rootPath="/mock" />);
-      await delay();
 
       // The very first read is the clamped root, never the out-of-root path.
-      expect(mockReadDirectory).toHaveBeenCalledWith('/mock');
+      await waitFor(() => expect(mockReadDirectory).toHaveBeenCalledWith('/mock'));
       expect(mockReadDirectory).not.toHaveBeenCalledWith('/etc/somewhere');
     });
 
     it('treats rootPath as mount-only (runtime change is ignored)', async () => {
       mockReadDirectory.mockResolvedValue(defaultEntries);
 
-      const { stdin, rerender } = render(
+      const { lastFrame, stdin, rerender } = render(
         <FilePicker initialPath="/mock" rootPath="/mock" />
       );
 
-      await delay();
+      await waitForFrame(lastFrame, frame => frame.includes('node_modules'));
       expect(mockReadDirectory).toHaveBeenCalledTimes(1);
 
       // Loosen the sandbox at runtime; the pinned mount-time root still applies.
       rerender(<FilePicker initialPath="/mock" rootPath="/" />);
-      await delay();
+      await settle();
 
       stdin.write('\x7F'); // Backspace at /mock is still a no-op under the pinned root
-      await delay();
+      await settle();
       expect(mockReadDirectory).toHaveBeenCalledTimes(1);
     });
   });
@@ -707,14 +711,12 @@ describe('FilePicker', () => {
         <FilePicker initialPath="/mock" />
       );
 
-      await delay();
       rerender(<FilePicker initialPath="/other" />);
-      await delay();
-      expect(lastFrame()).toContain('new-file.ts');
+      await waitForFrame(lastFrame, frame => frame.includes('new-file.ts'));
 
       // The superseded /mock read now resolves -- its entries must be discarded.
       resolveStale([makeEntry('stale-file.ts')]);
-      await delay();
+      await settle();
 
       expect(lastFrame()).toContain('new-file.ts');
       expect(lastFrame()).not.toContain('stale-file.ts');
@@ -732,7 +734,7 @@ describe('FilePicker', () => {
         <FilePicker initialPath="/mock" maxHeight={5} />
       );
 
-      await delay();
+      await waitForFrame(lastFrame, frame => frame.includes('file-00.ts'));
 
       const frame = lastFrame();
       // Should only show 5 entries, not all 20
