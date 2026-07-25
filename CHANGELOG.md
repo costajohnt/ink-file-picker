@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.3.2](https://github.com/costajohnt/ink-file-picker/compare/v0.3.1...v0.3.2) (2026-07-24)
+
+
+### Bug Fixes
+
+* replace fixed test delays with deterministic frame polling ([fa2c3a5](https://github.com/costajohnt/ink-file-picker/commit/fa2c3a577aa37b31852d3896a233fdc09da8d14e)), closes [#8](https://github.com/costajohnt/ink-file-picker/issues/8)
+
 ## [0.3.1](https://github.com/costajohnt/ink-file-picker/compare/v0.3.0...v0.3.1) (2026-07-02)
 
 
