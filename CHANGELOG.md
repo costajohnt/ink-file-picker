@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.3.3](https://github.com/costajohnt/ink-file-picker/compare/v0.3.2...v0.3.3) (2026-10-10)
+
+
+### Bug Fixes
+
+* compare symlink targets against the canonical rootPath ([#11](https://github.com/costajohnt/ink-file-picker/issues/11)) ([dd68ac2](https://github.com/costajohnt/ink-file-picker/commit/dd68ac2024dc8893071401e88526de5a22dbbeb5)), closes [#10](https://github.com/costajohnt/ink-file-picker/issues/10)
+
 ## [0.3.2](https://github.com/costajohnt/ink-file-picker/compare/v0.3.1...v0.3.2) (2026-07-24)
 
 
