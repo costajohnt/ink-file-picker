@@ -492,6 +492,56 @@ describe('reducer', () => {
       expect(next.currentPath).toBe('/root/project/sub');
       expect(next.mode).toBe('loading');
     });
+
+    it('follows an in-root symlink whose realpath is under the canonical root', () => {
+      // rootPath was given through a symlink (/link/proj -> /real/proj); the
+      // symlink target is a realpath, so it only matches the canonical root.
+      const entries = [makeEntry('sublink', 'symlink', {
+        symlinkTarget: '/real/proj/sub',
+        symlinkTargetKind: 'directory',
+      })];
+      const state = makeBrowsingState(entries, {
+        currentPath: '/link/proj',
+        rootPath: '/link/proj',
+        rootRealPath: '/real/proj',
+        focusedEntryName: 'sublink',
+      });
+
+      const next = reducer(state, { type: 'navigate-into-directory', name: 'sublink' });
+
+      expect(next.currentPath).toBe('/real/proj/sub');
+    });
+
+    it('refuses a symlink that escapes the canonical root', () => {
+      const entries = [makeEntry('escape', 'symlink', {
+        symlinkTarget: '/real/other',
+        symlinkTargetKind: 'directory',
+      })];
+      const state = makeBrowsingState(entries, {
+        currentPath: '/link/proj',
+        rootPath: '/link/proj',
+        rootRealPath: '/real/proj',
+        focusedEntryName: 'escape',
+      });
+
+      expect(reducer(state, { type: 'navigate-into-directory', name: 'escape' })).toBe(state);
+    });
+
+    it('follows a symlink into a child whose name starts with two dots', () => {
+      const entries = [makeEntry('cfg', 'symlink', {
+        symlinkTarget: '/root/project/..config',
+        symlinkTargetKind: 'directory',
+      })];
+      const state = makeBrowsingState(entries, {
+        currentPath: '/root/project',
+        rootPath: '/root/project',
+        focusedEntryName: 'cfg',
+      });
+
+      const next = reducer(state, { type: 'navigate-into-directory', name: 'cfg' });
+
+      expect(next.currentPath).toBe('/root/project/..config');
+    });
   });
 
   describe('navigate-to-parent', () => {

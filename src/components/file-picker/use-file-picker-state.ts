@@ -1,5 +1,6 @@
 import { useReducer, useCallback, useMemo, useEffect, useRef } from 'react';
-import { dirname, resolve, relative, isAbsolute } from 'node:path';
+import { realpathSync } from 'node:fs';
+import { dirname, resolve, relative, isAbsolute, sep } from 'node:path';
 import picomatch from 'picomatch';
 import { EntryMap } from '../../lib/entry-map.js';
 import type {
@@ -35,6 +36,11 @@ export type FilePickerState = {
   filter: EntryFilter | undefined;
   /** Sandbox root; navigation cannot go above this path. Resolved to absolute. */
   rootPath: string | undefined;
+  /**
+   * Canonical (realpath) form of rootPath. Symlink targets are realpaths, so
+   * they are checked against this. Undefined means the same as rootPath.
+   */
+  rootRealPath?: string | undefined;
 };
 
 // --- Action Types ---
@@ -137,7 +143,35 @@ function isWithinRoot(target: string, root: string): boolean {
   const resolvedTarget = resolve(target);
   if (resolvedTarget === root) return true;
   const rel = relative(root, resolvedTarget);
-  return rel !== '' && !rel.startsWith('..') && !isAbsolute(rel);
+  // `..config` is a legitimate child; only `..` itself or `../...` escapes.
+  return rel !== '' && rel !== '..' && !rel.startsWith(`..${sep}`) && !isAbsolute(rel);
+}
+
+/**
+ * Sandbox check against either form of the root. Paths built from the
+ * configured root (initialPath, dirname) are compared to rootPath as given;
+ * symlink targets are realpaths, so they are compared to the canonical root.
+ * When the root itself is reached through a symlink (macOS /tmp, /var) the
+ * two differ, and checking only one would refuse in-root symlinks.
+ */
+function isWithinSandbox(
+  target: string,
+  {rootPath, rootRealPath}: Pick<FilePickerState, 'rootPath' | 'rootRealPath'>,
+): boolean {
+  if (!rootPath) return true;
+  if (isWithinRoot(target, rootPath)) return true;
+  return rootRealPath !== undefined &&
+    rootRealPath !== rootPath &&
+    isWithinRoot(target, rootRealPath);
+}
+
+/** Realpath of `path`, or `path` itself when it cannot be resolved (e.g. missing). */
+function canonicalize(path: string): string {
+  try {
+    return realpathSync.native(path);
+  } catch {
+    return path;
+  }
 }
 
 /** Shallow equality by entry identity (path), order-sensitive. */
@@ -157,7 +191,7 @@ export function reducer(state: FilePickerState, action: FilePickerAction): FileP
       // A fresh navigation to an explicit path (e.g. initialPath changed):
       // reset history and selection. Clamp into rootPath so a new initialPath
       // outside the sandbox cannot escape it.
-      const targetPath = state.rootPath && !isWithinRoot(action.path, state.rootPath)
+      const targetPath = state.rootPath && !isWithinSandbox(action.path, state)
         ? state.rootPath
         : action.path;
       return {
@@ -215,7 +249,7 @@ export function reducer(state: FilePickerState, action: FilePickerAction): FileP
 
       // Sandbox: a symlink target is an absolute realpath that can point
       // anywhere, so refuse to follow one that escapes rootPath.
-      if (state.rootPath && !isWithinRoot(targetPath, state.rootPath)) {
+      if (!isWithinSandbox(targetPath, state)) {
         return state;
       }
 
@@ -239,7 +273,7 @@ export function reducer(state: FilePickerState, action: FilePickerAction): FileP
         return state;
       }
       // Sandbox: refuse to navigate above rootPath.
-      if (state.rootPath && !isWithinRoot(targetPath, state.rootPath)) {
+      if (!isWithinSandbox(targetPath, state)) {
         return state;
       }
       return {
@@ -527,9 +561,10 @@ type InitArgs = {
 
 function createInitialState(args: InitArgs): FilePickerState {
   const rootPath = args.rootPath ? resolve(args.rootPath) : undefined;
+  const rootRealPath = rootPath ? canonicalize(rootPath) : undefined;
   // Clamp the starting path into the sandbox: an initialPath outside rootPath
   // falls back to rootPath itself.
-  const currentPath = rootPath && !isWithinRoot(args.initialPath, rootPath)
+  const currentPath = rootPath && !isWithinSandbox(args.initialPath, {rootPath, rootRealPath})
     ? rootPath
     : args.initialPath;
 
@@ -554,6 +589,7 @@ function createInitialState(args: InitArgs): FilePickerState {
     fileTypes: args.fileTypes,
     filter: args.filter,
     rootPath,
+    rootRealPath,
   };
 }
 

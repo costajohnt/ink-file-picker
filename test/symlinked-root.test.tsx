@@ -1,0 +1,102 @@
+import React from 'react';
+import { mkdtemp, mkdir, writeFile, symlink, rm, realpath } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { render } from 'ink-testing-library';
+import { FilePicker } from '../src/components/file-picker/file-picker.js';
+
+// Real filesystem (no fs-operations mock): the bug only shows when the
+// configured rootPath itself is reached through a symlink, as on macOS where
+// /tmp and os.tmpdir() live under a symlinked /var.
+
+const ansiPattern = new RegExp(String.raw`${String.fromCodePoint(27)}\[[0-9;]*m`, 'g');
+
+function plain(frame: string | undefined): string {
+  return (frame ?? '').replaceAll(ansiPattern, '');
+}
+
+async function settle(turns = 10): Promise<void> {
+  for (let i = 0; i < turns; i++) {
+    await new Promise(resolve => {
+      setTimeout(resolve, 0);
+    });
+  }
+}
+
+async function waitForFrame(
+  lastFrame: () => string | undefined,
+  matcher: (frame: string) => boolean,
+  timeoutMs = 3000,
+): Promise<void> {
+  const start = Date.now();
+  while (!matcher(plain(lastFrame()))) {
+    if (Date.now() - start >= timeoutMs) {
+      throw new Error(`Frame did not match:\n${plain(lastFrame())}`);
+    }
+
+    await new Promise(resolve => {
+      setTimeout(resolve, 10);
+    });
+  }
+
+  await settle();
+}
+
+describe('rootPath reached through a symlink', () => {
+  let tmp: string;
+
+  beforeEach(async () => {
+    tmp = await realpath(await mkdtemp(join(tmpdir(), 'ink-file-picker-root-')));
+    // real/proj/sub/inside.txt, link -> real, real/proj/sublink -> link/proj/sub
+    await mkdir(join(tmp, 'real', 'proj', 'sub'), { recursive: true });
+    await writeFile(join(tmp, 'real', 'proj', 'sub', 'inside.txt'), 'x');
+    await symlink(join(tmp, 'real'), join(tmp, 'link'));
+    await symlink(join(tmp, 'link', 'proj', 'sub'), join(tmp, 'real', 'proj', 'sublink'));
+  });
+
+  afterEach(async () => {
+    await rm(tmp, { recursive: true, force: true });
+  });
+
+  it('follows an in-root symlink when rootPath goes through a symlink', async () => {
+    const root = join(tmp, 'link', 'proj');
+    const { lastFrame, stdin, unmount } = render(
+      <FilePicker initialPath={root} rootPath={root} />,
+    );
+
+    await waitForFrame(lastFrame, frame => frame.includes('sublink'));
+
+    // Entries sort as: sub, sublink. Focus sublink and enter it.
+    stdin.write('\u001B[B');
+    await settle();
+    stdin.write('\r');
+
+    await waitForFrame(lastFrame, frame => frame.includes('inside.txt'));
+    expect(plain(lastFrame())).toContain('inside.txt');
+
+    unmount();
+  });
+
+  it('still refuses a symlink that escapes the canonical root', async () => {
+    await mkdir(join(tmp, 'outside'));
+    await writeFile(join(tmp, 'outside', 'secret.txt'), 'x');
+    await symlink(join(tmp, 'outside'), join(tmp, 'real', 'proj', 'escape'));
+
+    const root = join(tmp, 'link', 'proj');
+    const { lastFrame, stdin, unmount } = render(
+      <FilePicker initialPath={root} rootPath={root} />,
+    );
+
+    await waitForFrame(lastFrame, frame => frame.includes('escape'));
+
+    // Entries sort as: escape, sub, sublink. escape is focused first.
+    stdin.write('\r');
+    await settle(30);
+
+    expect(plain(lastFrame())).not.toContain('secret.txt');
+    expect(plain(lastFrame())).toContain('sublink');
+
+    unmount();
+  });
+});
