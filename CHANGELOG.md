@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.3.4](https://github.com/costajohnt/ink-file-picker/compare/v0.3.3...v0.3.4) (2026-10-10)
+
+
+### Bug Fixes
+
+* **deps:** patch dev dependency advisories ([#13](https://github.com/costajohnt/ink-file-picker/issues/13)) ([41581cc](https://github.com/costajohnt/ink-file-picker/commit/41581cccb97ade04b0db5338da57f2fa58e6fd81))
+
 ## [0.3.3](https://github.com/costajohnt/ink-file-picker/compare/v0.3.2...v0.3.3) (2026-10-10)
 
 
