@@ -126,7 +126,7 @@ Pass `rootPath` to confine the user to a directory subtree. Once at the root, Ba
 <FilePicker initialPath="/home/user/project/src" rootPath="/home/user/project" />
 ```
 
-The sandbox also blocks the other escape routes: a symlink whose target resolves outside the root is not followed, and an `initialPath` outside the root is clamped back to the root. `rootPath` is read once at mount.
+The sandbox also blocks the other escape routes: a symlink whose target resolves outside the root is not followed, and an `initialPath` outside the root is clamped back to the root. Symlink targets are compared against the root's real path, so a root reached through a symlink (for example under `/tmp` on macOS) still lets the user follow symlinks that stay inside it. `rootPath` is read once at mount.
 
 ## Multi-Select Mode
 
