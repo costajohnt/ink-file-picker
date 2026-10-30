@@ -29,7 +29,7 @@ A filesystem navigation and file selection component for [Ink](https://github.co
 npm install ink-file-picker
 ```
 
-Peer dependencies: `ink` (>= 6.0.0) and `react` (>= 19.0.0). Requires Node.js >= 20.
+Peer dependencies: `ink` (>= 6.0.0) and `react` (>= 19.0.0). Requires Node.js >= 22.
 
 ## Quick Start
 

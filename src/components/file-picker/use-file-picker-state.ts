@@ -594,9 +594,10 @@ export function reducer(state: FilePickerState, action: FilePickerAction): FileP
       let {selectedPaths} = state;
       if (selectedPaths.size > 0) {
         const visiblePaths = new Set(allEntries.map(entry => entry.path));
-        const kept = [...selectedPaths].filter(p => visiblePaths.has(p));
-        if (kept.length !== selectedPaths.size) {
-          selectedPaths = new Set(kept);
+        // `difference` keeps the receiver's order, so selections stay in the order made.
+        const dropped = selectedPaths.difference(visiblePaths);
+        if (dropped.size > 0) {
+          selectedPaths = selectedPaths.difference(dropped);
         }
       }
 

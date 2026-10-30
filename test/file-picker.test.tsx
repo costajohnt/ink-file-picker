@@ -745,10 +745,7 @@ describe('FilePicker', () => {
 
   describe('stale directory reads', () => {
     it('discards a stale read that resolves after navigation', async () => {
-      let resolveStale!: (entries: FileEntry[]) => void;
-      const stale = new Promise<FileEntry[]>(resolve => {
-        resolveStale = resolve;
-      });
+      const {promise: stale, resolve: resolveStale} = Promise.withResolvers<FileEntry[]>();
       mockReadDirectory
         .mockReturnValueOnce(stale) // /mock -- left pending
         .mockResolvedValueOnce([makeEntry('new-file.ts')]); // /other -- resolves first
