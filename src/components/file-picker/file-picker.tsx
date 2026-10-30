@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { Box, Text, useIsScreenReaderEnabled } from 'ink';
 import { useFilePickerState } from './use-file-picker-state.js';
 import { useFilePicker } from './use-file-picker.js';

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Box, Text } from 'ink';
 import { SPINNER_FRAMES, SPINNER_INTERVAL } from '../../constants.js';
 import type { FilePickerThemeStyles } from '../../types.js';

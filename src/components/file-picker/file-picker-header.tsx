@@ -1,4 +1,3 @@
-import React from 'react';
 import { Box, Text } from 'ink';
 import { truncatePath } from '../../lib/path-utils.js';
 import type { FilePickerThemeStyles, FilePickerTheme } from '../../types.js';
