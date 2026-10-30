@@ -3,27 +3,11 @@
   "version": "0.3.4",
   "description": "Filesystem navigation and file selection component for Ink",
   "license": "MIT",
-  "author": "John Costa",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/costajohnt/ink-file-picker"
-  },
+  "repository": "github:costajohnt/ink-file-picker",
   "homepage": "https://github.com/costajohnt/ink-file-picker#readme",
   "bugs": "https://github.com/costajohnt/ink-file-picker/issues",
-  "keywords": [
-    "ink",
-    "cli",
-    "file",
-    "picker",
-    "browser",
-    "terminal",
-    "react",
-    "tui",
-    "filesystem"
-  ],
+  "author": "John Costa",
   "type": "module",
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -31,9 +15,8 @@
     },
     "./package.json": "./package.json"
   },
-  "files": [
-    "dist"
-  ],
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "engines": {
     "node": ">=20"
   },
@@ -47,10 +30,20 @@
     "typecheck": "tsc --noEmit",
     "prepublishOnly": "npm run build"
   },
-  "peerDependencies": {
-    "ink": ">=6.0.0",
-    "react": ">=19.0.0"
-  },
+  "files": [
+    "dist"
+  ],
+  "keywords": [
+    "ink",
+    "cli",
+    "file",
+    "picker",
+    "browser",
+    "terminal",
+    "react",
+    "tui",
+    "filesystem"
+  ],
   "dependencies": {
     "figures": "^6.1.0",
     "picomatch": "^4.0.0"
@@ -67,5 +60,9 @@
     "typescript": "^5.4.0",
     "vitest": "^4.1.11",
     "xo": "^5.0.1"
+  },
+  "peerDependencies": {
+    "ink": ">=6.0.0",
+    "react": ">=19.0.0"
   }
 }

@@ -1,8 +1,20 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { readDirectory } from '../src/lib/fs-operations.js';
-import { resolve, join } from 'node:path';
-import { mkdtemp, mkdir, writeFile, symlink, rm } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import {resolve, join} from 'node:path';
+import {
+  mkdtemp,
+  mkdir,
+  writeFile,
+  symlink,
+  rm,
+} from 'node:fs/promises';
+import {tmpdir} from 'node:os';
+import {
+  describe,
+  it,
+  expect,
+  beforeAll,
+  afterAll,
+} from 'vitest';
+import {readDirectory} from '../src/lib/fs-operations.js';
 
 const FIXTURES_DIR = resolve(import.meta.dirname, 'fixtures/sample-tree');
 
@@ -60,36 +72,37 @@ describe('readDirectory', () => {
 
   it('throws on non-existent directory', async () => {
     await expect(
-      readDirectory('/this/path/does/not/exist')
+      readDirectory('/this/path/does/not/exist'),
     ).rejects.toThrow();
   });
 });
 
 describe('readDirectory with many symlinks (bounded concurrency)', () => {
-  let tmp: string;
+  let temporary: string;
   const linkCount = 25; // > STAT_CONCURRENCY (10) to exercise the bounded worker pool
 
   beforeAll(async () => {
-    tmp = await mkdtemp(join(tmpdir(), 'ink-file-picker-symlinks-'));
-    const targetDir = join(tmp, 'target-dir');
-    const targetFile = join(tmp, 'target-file.txt');
+    temporary = await mkdtemp(join(tmpdir(), 'ink-file-picker-symlinks-'));
+    const targetDir = join(temporary, 'target-dir');
+    const targetFile = join(temporary, 'target-file.txt');
     await mkdir(targetDir);
     await writeFile(targetFile, 'hello');
 
     // A mix of symlinks-to-dir, symlinks-to-file, and one broken symlink.
     for (let i = 0; i < linkCount; i++) {
       const dest = i % 2 === 0 ? targetDir : targetFile;
-      await symlink(dest, join(tmp, `link-${String(i).padStart(2, '0')}`));
+      await symlink(dest, join(temporary, `link-${String(i).padStart(2, '0')}`));
     }
-    await symlink(join(tmp, 'nope-does-not-exist'), join(tmp, 'broken-link'));
+
+    await symlink(join(temporary, 'nope-does-not-exist'), join(temporary, 'broken-link'));
   });
 
   afterAll(async () => {
-    await rm(tmp, { recursive: true, force: true });
+    await rm(temporary, {recursive: true, force: true});
   });
 
   it('resolves every symlink target without dropping entries', async () => {
-    const entries = await readDirectory(tmp);
+    const entries = await readDirectory(temporary);
     const links = entries.filter(e => e.name.startsWith('link-'));
     expect(links.length).toBe(linkCount);
 
@@ -105,7 +118,7 @@ describe('readDirectory with many symlinks (bounded concurrency)', () => {
   });
 
   it('marks a broken symlink with undefined target fields', async () => {
-    const entries = await readDirectory(tmp);
+    const entries = await readDirectory(temporary);
     const broken = entries.find(e => e.name === 'broken-link');
     expect(broken?.kind).toBe('symlink');
     expect(broken?.symlinkTarget).toBeUndefined();

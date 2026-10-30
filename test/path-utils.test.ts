@@ -1,6 +1,6 @@
-import { describe, it, expect } from 'vitest';
-import { sep, join } from 'node:path';
-import { truncatePath } from '../src/lib/path-utils.js';
+import {sep, join} from 'node:path';
+import {describe, it, expect} from 'vitest';
+import {truncatePath} from '../src/lib/path-utils.js';
 
 describe('truncatePath', () => {
   it('returns short paths unchanged', () => {
@@ -31,7 +31,7 @@ describe('truncatePath', () => {
     const longPath = join(sep, 'Users', 'john', 'projects', 'big-app', 'src', 'components');
     const result = truncatePath(longPath, 20);
     expect(result.startsWith('...')).toBe(true);
-    expect(result).toContain(`components`);
+    expect(result).toContain('components');
     // The joined segments in the output are separated by the platform separator.
     expect(result).toContain(`src${sep}components`);
   });

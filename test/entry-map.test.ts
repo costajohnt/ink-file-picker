@@ -1,6 +1,6 @@
-import { describe, it, expect } from 'vitest';
-import { EntryMap } from '../src/lib/entry-map.js';
-import type { FileEntry } from '../src/types.js';
+import {describe, it, expect} from 'vitest';
+import {EntryMap} from '../src/lib/entry-map.js';
+import type {FileEntry} from '../src/types.js';
 
 function makeEntry(name: string, kind: 'file' | 'directory' = 'file'): FileEntry {
   return {

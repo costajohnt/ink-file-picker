@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
-import { Box, Text } from 'ink';
-import { SPINNER_FRAMES, SPINNER_INTERVAL } from '../../constants.js';
-import type { FilePickerThemeStyles } from '../../types.js';
+import {useState, useEffect} from 'react';
+import {Box, Text} from 'ink';
+import {SPINNER_FRAMES, SPINNER_INTERVAL} from '../../constants.js';
+import type {FilePickerThemeStyles} from '../../types.js';
 
 type FilePickerStatusProps = {
   type: 'loading' | 'error';
@@ -13,11 +13,15 @@ function useSpinner(isActive: boolean): string {
   const [frame, setFrame] = useState(0);
 
   useEffect(() => {
-    if (!isActive) return;
+    if (!isActive) {
+      return;
+    }
+
     const timer = setInterval(() => {
-      setFrame(prev => (prev + 1) % SPINNER_FRAMES.length);
+      setFrame(previous => (previous + 1) % SPINNER_FRAMES.length);
     }, SPINNER_INTERVAL);
-    return () => clearInterval(timer);
+    return () => {clearInterval(timer);
+    };
   }, [isActive]);
 
   return SPINNER_FRAMES[frame]!;

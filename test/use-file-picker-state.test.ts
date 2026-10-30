@@ -1,7 +1,7 @@
-import { describe, it, expect } from 'vitest';
-import { reducer, type FilePickerState } from '../src/components/file-picker/use-file-picker-state.js';
-import { EntryMap } from '../src/lib/entry-map.js';
-import type { FileEntry } from '../src/types.js';
+import {describe, it, expect} from 'vitest';
+import {reducer, type FilePickerState} from '../src/components/file-picker/use-file-picker-state.js';
+import {EntryMap} from '../src/lib/entry-map.js';
+import type {FileEntry} from '../src/types.js';
 
 function makeEntry(name: string, kind: FileEntry['kind'] = 'file', overrides: Partial<FileEntry> = {}): FileEntry {
   return {
@@ -75,7 +75,7 @@ describe('reducer', () => {
       const state = makeLoadingState();
       const entries = [makeEntry('file.ts'), makeEntry('src', 'directory')];
 
-      const next = reducer(state, { type: 'load-directory-success', entries });
+      const next = reducer(state, {type: 'load-directory-success', entries});
 
       expect(next.allEntries.length).toBe(2);
       expect(next.filteredEntries.length).toBe(2);
@@ -85,7 +85,7 @@ describe('reducer', () => {
       const state = makeLoadingState();
       const entries = [makeEntry('file.ts'), makeEntry('src', 'directory'), makeEntry('app', 'directory')];
 
-      const next = reducer(state, { type: 'load-directory-success', entries });
+      const next = reducer(state, {type: 'load-directory-success', entries});
 
       expect(next.allEntries[0]?.kind).toBe('directory');
       expect(next.allEntries[1]?.kind).toBe('directory');
@@ -96,7 +96,7 @@ describe('reducer', () => {
       const state = makeLoadingState();
       const entries = [makeEntry('zebra.ts'), makeEntry('alpha.ts'), makeEntry('src', 'directory'), makeEntry('app', 'directory')];
 
-      const next = reducer(state, { type: 'load-directory-success', entries });
+      const next = reducer(state, {type: 'load-directory-success', entries});
 
       expect(next.allEntries[0]?.name).toBe('app');
       expect(next.allEntries[1]?.name).toBe('src');
@@ -105,33 +105,33 @@ describe('reducer', () => {
     });
 
     it('filters hidden files when showHidden is false', () => {
-      const state = makeLoadingState({ showHidden: false });
+      const state = makeLoadingState({showHidden: false});
       const entries = [makeEntry('.hidden'), makeEntry('visible.ts')];
 
-      const next = reducer(state, { type: 'load-directory-success', entries });
+      const next = reducer(state, {type: 'load-directory-success', entries});
 
       expect(next.allEntries.length).toBe(1);
       expect(next.allEntries[0]?.name).toBe('visible.ts');
     });
 
     it('keeps hidden files when showHidden is true', () => {
-      const state = makeLoadingState({ showHidden: true });
+      const state = makeLoadingState({showHidden: true});
       const entries = [makeEntry('.hidden'), makeEntry('visible.ts')];
 
-      const next = reducer(state, { type: 'load-directory-success', entries });
+      const next = reducer(state, {type: 'load-directory-success', entries});
 
       expect(next.allEntries.length).toBe(2);
     });
 
     it('applies glob filter from filter prop', () => {
-      const state = makeLoadingState({ filter: '*.ts' });
+      const state = makeLoadingState({filter: '*.ts'});
       const entries = [
         makeEntry('index.ts'),
         makeEntry('style.css'),
         makeEntry('src', 'directory'),
       ];
 
-      const next = reducer(state, { type: 'load-directory-success', entries });
+      const next = reducer(state, {type: 'load-directory-success', entries});
 
       // Directories always kept; only *.ts files pass
       const names = next.allEntries.map(e => e.name);
@@ -150,7 +150,7 @@ describe('reducer', () => {
         makeEntry('src', 'directory'),
       ];
 
-      const next = reducer(state, { type: 'load-directory-success', entries });
+      const next = reducer(state, {type: 'load-directory-success', entries});
 
       const names = next.allEntries.map(e => e.name);
       expect(names).toContain('src');
@@ -159,7 +159,7 @@ describe('reducer', () => {
     });
 
     it('applies glob filter to directories when fileTypes is directories', () => {
-      const state = makeLoadingState({ filter: 's*', fileTypes: 'directories' });
+      const state = makeLoadingState({filter: 's*', fileTypes: 'directories'});
       const entries = [
         makeEntry('src', 'directory'),
         makeEntry('scripts', 'directory'),
@@ -167,7 +167,7 @@ describe('reducer', () => {
         makeEntry('index.ts'),
       ];
 
-      const next = reducer(state, { type: 'load-directory-success', entries });
+      const next = reducer(state, {type: 'load-directory-success', entries});
 
       const names = next.allEntries.map(e => e.name);
       expect(names).toContain('src');
@@ -187,7 +187,7 @@ describe('reducer', () => {
         makeEntry('index.ts'),
       ];
 
-      const next = reducer(state, { type: 'load-directory-success', entries });
+      const next = reducer(state, {type: 'load-directory-success', entries});
 
       const names = next.allEntries.map(e => e.name);
       expect(names).toContain('src');
@@ -199,7 +199,7 @@ describe('reducer', () => {
       const state = makeLoadingState();
       const entries = [makeEntry('alpha.ts'), makeEntry('beta.ts')];
 
-      const next = reducer(state, { type: 'load-directory-success', entries });
+      const next = reducer(state, {type: 'load-directory-success', entries});
 
       expect(next.focusedEntryName).toBe('alpha.ts');
     });
@@ -208,7 +208,7 @@ describe('reducer', () => {
       const state = makeLoadingState();
       const entries = [makeEntry('file.ts')];
 
-      const next = reducer(state, { type: 'load-directory-success', entries });
+      const next = reducer(state, {type: 'load-directory-success', entries});
 
       expect(next.mode).toBe('browsing');
     });
@@ -216,18 +216,18 @@ describe('reducer', () => {
     it('preserves empty filter text from loading transition', () => {
       // filterText is cleared when entering loading mode (via load-directory),
       // so by the time load-directory-success fires, it should already be ''
-      const state = makeLoadingState({ filterText: '' });
+      const state = makeLoadingState({filterText: ''});
       const entries = [makeEntry('file.ts')];
 
-      const next = reducer(state, { type: 'load-directory-success', entries });
+      const next = reducer(state, {type: 'load-directory-success', entries});
 
       expect(next.filterText).toBe('');
     });
 
     it('load-directory clears filter text before loading', () => {
-      const state = makeBrowsingState([makeEntry('file.ts')], { filterText: 'old filter' });
+      const state = makeBrowsingState([makeEntry('file.ts')], {filterText: 'old filter'});
 
-      const next = reducer(state, { type: 'load-directory', path: '/new-path' });
+      const next = reducer(state, {type: 'load-directory', path: '/new-path'});
 
       expect(next.filterText).toBe('');
       expect(next.mode).toBe('loading');
@@ -240,7 +240,7 @@ describe('reducer', () => {
         selectedPaths: new Set(['/mock/file.ts']),
       });
 
-      const next = reducer(state, { type: 'load-directory', path: '/new-path' });
+      const next = reducer(state, {type: 'load-directory', path: '/new-path'});
 
       expect(next.currentPath).toBe('/new-path');
       expect(next.pathHistory).toEqual([]);
@@ -248,17 +248,17 @@ describe('reducer', () => {
     });
 
     it('load-directory clamps an out-of-root path back to rootPath', () => {
-      const state = makeBrowsingState([], { currentPath: '/root/a', rootPath: '/root' });
+      const state = makeBrowsingState([], {currentPath: '/root/a', rootPath: '/root'});
 
-      const next = reducer(state, { type: 'load-directory', path: '/etc' });
+      const next = reducer(state, {type: 'load-directory', path: '/etc'});
 
       expect(next.currentPath).toBe('/root');
     });
 
     it('load-directory allows an in-root path unchanged', () => {
-      const state = makeBrowsingState([], { currentPath: '/root/a', rootPath: '/root' });
+      const state = makeBrowsingState([], {currentPath: '/root/a', rootPath: '/root'});
 
-      const next = reducer(state, { type: 'load-directory', path: '/root/b/c' });
+      const next = reducer(state, {type: 'load-directory', path: '/root/b/c'});
 
       expect(next.currentPath).toBe('/root/b/c');
     });
@@ -267,13 +267,13 @@ describe('reducer', () => {
   describe('load-directory-error', () => {
     it('sets mode to error', () => {
       const state = makeLoadingState();
-      const next = reducer(state, { type: 'load-directory-error', error: 'EACCES' });
+      const next = reducer(state, {type: 'load-directory-error', error: 'EACCES'});
       expect(next.mode).toBe('error');
     });
 
     it('stores error message', () => {
       const state = makeLoadingState();
-      const next = reducer(state, { type: 'load-directory-error', error: 'Permission denied' });
+      const next = reducer(state, {type: 'load-directory-error', error: 'Permission denied'});
       expect(next.errorMessage).toBe('Permission denied');
     });
   });
@@ -281,24 +281,24 @@ describe('reducer', () => {
   describe('focus-next', () => {
     it('moves focus to next entry', () => {
       const entries = [makeEntry('a'), makeEntry('b'), makeEntry('c')];
-      const state = makeBrowsingState(entries, { focusedEntryName: 'a' });
+      const state = makeBrowsingState(entries, {focusedEntryName: 'a'});
 
-      const next = reducer(state, { type: 'focus-next' });
+      const next = reducer(state, {type: 'focus-next'});
 
       expect(next.focusedEntryName).toBe('b');
     });
 
     it('does nothing when at last entry', () => {
       const entries = [makeEntry('a'), makeEntry('b')];
-      const state = makeBrowsingState(entries, { focusedEntryName: 'b' });
+      const state = makeBrowsingState(entries, {focusedEntryName: 'b'});
 
-      const next = reducer(state, { type: 'focus-next' });
+      const next = reducer(state, {type: 'focus-next'});
 
       expect(next.focusedEntryName).toBe('b');
     });
 
     it('scrolls visible window down when focus exceeds visibleToIndex', () => {
-      const entries = Array.from({ length: 15 }, (_, i) => makeEntry(`file-${String(i).padStart(2, '0')}`));
+      const entries = Array.from({length: 15}, (_, i) => makeEntry(`file-${String(i).padStart(2, '0')}`));
       const state = makeBrowsingState(entries, {
         focusedEntryName: 'file-09',
         visibleFromIndex: 0,
@@ -306,7 +306,7 @@ describe('reducer', () => {
         visibleEntryCount: 10,
       });
 
-      const next = reducer(state, { type: 'focus-next' });
+      const next = reducer(state, {type: 'focus-next'});
 
       expect(next.focusedEntryName).toBe('file-10');
       expect(next.visibleToIndex).toBe(11);
@@ -317,24 +317,24 @@ describe('reducer', () => {
   describe('focus-previous', () => {
     it('moves focus to previous entry', () => {
       const entries = [makeEntry('a'), makeEntry('b'), makeEntry('c')];
-      const state = makeBrowsingState(entries, { focusedEntryName: 'b' });
+      const state = makeBrowsingState(entries, {focusedEntryName: 'b'});
 
-      const next = reducer(state, { type: 'focus-previous' });
+      const next = reducer(state, {type: 'focus-previous'});
 
       expect(next.focusedEntryName).toBe('a');
     });
 
     it('does nothing when at first entry', () => {
       const entries = [makeEntry('a'), makeEntry('b')];
-      const state = makeBrowsingState(entries, { focusedEntryName: 'a' });
+      const state = makeBrowsingState(entries, {focusedEntryName: 'a'});
 
-      const next = reducer(state, { type: 'focus-previous' });
+      const next = reducer(state, {type: 'focus-previous'});
 
       expect(next.focusedEntryName).toBe('a');
     });
 
     it('scrolls visible window up when focus is below visibleFromIndex', () => {
-      const entries = Array.from({ length: 15 }, (_, i) => makeEntry(`file-${String(i).padStart(2, '0')}`));
+      const entries = Array.from({length: 15}, (_, i) => makeEntry(`file-${String(i).padStart(2, '0')}`));
       const state = makeBrowsingState(entries, {
         focusedEntryName: 'file-05',
         visibleFromIndex: 5,
@@ -342,7 +342,7 @@ describe('reducer', () => {
         visibleEntryCount: 10,
       });
 
-      const next = reducer(state, { type: 'focus-previous' });
+      const next = reducer(state, {type: 'focus-previous'});
 
       expect(next.focusedEntryName).toBe('file-04');
       expect(next.visibleFromIndex).toBe(4);
@@ -353,22 +353,22 @@ describe('reducer', () => {
   describe('focus-first', () => {
     it('jumps to first entry', () => {
       const entries = [makeEntry('a'), makeEntry('b'), makeEntry('c')];
-      const state = makeBrowsingState(entries, { focusedEntryName: 'c' });
+      const state = makeBrowsingState(entries, {focusedEntryName: 'c'});
 
-      const next = reducer(state, { type: 'focus-first' });
+      const next = reducer(state, {type: 'focus-first'});
 
       expect(next.focusedEntryName).toBe('a');
     });
 
     it('resets visible window to top', () => {
-      const entries = Array.from({ length: 15 }, (_, i) => makeEntry(`file-${i}`));
+      const entries = Array.from({length: 15}, (_, i) => makeEntry(`file-${i}`));
       const state = makeBrowsingState(entries, {
         focusedEntryName: 'file-14',
         visibleFromIndex: 5,
         visibleToIndex: 15,
       });
 
-      const next = reducer(state, { type: 'focus-first' });
+      const next = reducer(state, {type: 'focus-first'});
 
       expect(next.visibleFromIndex).toBe(0);
       expect(next.visibleToIndex).toBe(10);
@@ -378,22 +378,22 @@ describe('reducer', () => {
   describe('focus-last', () => {
     it('jumps to last entry', () => {
       const entries = [makeEntry('a'), makeEntry('b'), makeEntry('c')];
-      const state = makeBrowsingState(entries, { focusedEntryName: 'a' });
+      const state = makeBrowsingState(entries, {focusedEntryName: 'a'});
 
-      const next = reducer(state, { type: 'focus-last' });
+      const next = reducer(state, {type: 'focus-last'});
 
       expect(next.focusedEntryName).toBe('c');
     });
 
     it('sets visible window to bottom', () => {
-      const entries = Array.from({ length: 15 }, (_, i) => makeEntry(`file-${i}`));
+      const entries = Array.from({length: 15}, (_, i) => makeEntry(`file-${i}`));
       const state = makeBrowsingState(entries, {
         focusedEntryName: 'file-0',
         visibleFromIndex: 0,
         visibleToIndex: 10,
       });
 
-      const next = reducer(state, { type: 'focus-last' });
+      const next = reducer(state, {type: 'focus-last'});
 
       expect(next.visibleFromIndex).toBe(5);
       expect(next.visibleToIndex).toBe(15);
@@ -405,7 +405,7 @@ describe('reducer', () => {
       const entries = [makeEntry('src', 'directory'), makeEntry('file.ts')];
       const state = makeBrowsingState(entries);
 
-      const next = reducer(state, { type: 'navigate-into-directory', name: 'src' });
+      const next = reducer(state, {type: 'navigate-into-directory', name: 'src'});
 
       expect(next.mode).toBe('loading');
     });
@@ -414,25 +414,25 @@ describe('reducer', () => {
       const entries = [makeEntry('src', 'directory'), makeEntry('file.ts')];
       const state = makeBrowsingState(entries);
 
-      const next = reducer(state, { type: 'navigate-into-directory', name: 'src' });
+      const next = reducer(state, {type: 'navigate-into-directory', name: 'src'});
 
       expect(next.currentPath).toBe('/mock/src');
     });
 
     it('pushes old path onto pathHistory', () => {
       const entries = [makeEntry('src', 'directory')];
-      const state = makeBrowsingState(entries, { currentPath: '/mock' });
+      const state = makeBrowsingState(entries, {currentPath: '/mock'});
 
-      const next = reducer(state, { type: 'navigate-into-directory', name: 'src' });
+      const next = reducer(state, {type: 'navigate-into-directory', name: 'src'});
 
       expect(next.pathHistory).toContain('/mock');
     });
 
     it('clears filter text', () => {
       const entries = [makeEntry('src', 'directory')];
-      const state = makeBrowsingState(entries, { filterText: 'some filter' });
+      const state = makeBrowsingState(entries, {filterText: 'some filter'});
 
-      const next = reducer(state, { type: 'navigate-into-directory', name: 'src' });
+      const next = reducer(state, {type: 'navigate-into-directory', name: 'src'});
 
       expect(next.filterText).toBe('');
     });
@@ -441,7 +441,7 @@ describe('reducer', () => {
       const entries = [makeEntry('file.ts')];
       const state = makeBrowsingState(entries);
 
-      const next = reducer(state, { type: 'navigate-into-directory', name: 'file.ts' });
+      const next = reducer(state, {type: 'navigate-into-directory', name: 'file.ts'});
 
       expect(next.mode).toBe('browsing');
       expect(next.currentPath).toBe('/mock');
@@ -454,7 +454,7 @@ describe('reducer', () => {
         selectedPaths: new Set(['/mock/file.ts']),
       });
 
-      const next = reducer(state, { type: 'navigate-into-directory', name: 'src' });
+      const next = reducer(state, {type: 'navigate-into-directory', name: 'src'});
 
       expect(next.selectedPaths.size).toBe(0);
     });
@@ -470,7 +470,7 @@ describe('reducer', () => {
         focusedEntryName: 'logs',
       });
 
-      const next = reducer(state, { type: 'navigate-into-directory', name: 'logs' });
+      const next = reducer(state, {type: 'navigate-into-directory', name: 'logs'});
 
       // Sandbox escape blocked: no-op.
       expect(next).toBe(state);
@@ -487,7 +487,7 @@ describe('reducer', () => {
         focusedEntryName: 'shortcut',
       });
 
-      const next = reducer(state, { type: 'navigate-into-directory', name: 'shortcut' });
+      const next = reducer(state, {type: 'navigate-into-directory', name: 'shortcut'});
 
       expect(next.currentPath).toBe('/root/project/sub');
       expect(next.mode).toBe('loading');
@@ -507,7 +507,7 @@ describe('reducer', () => {
         focusedEntryName: 'sublink',
       });
 
-      const next = reducer(state, { type: 'navigate-into-directory', name: 'sublink' });
+      const next = reducer(state, {type: 'navigate-into-directory', name: 'sublink'});
 
       expect(next.currentPath).toBe('/real/proj/sub');
     });
@@ -524,7 +524,7 @@ describe('reducer', () => {
         focusedEntryName: 'escape',
       });
 
-      expect(reducer(state, { type: 'navigate-into-directory', name: 'escape' })).toBe(state);
+      expect(reducer(state, {type: 'navigate-into-directory', name: 'escape'})).toBe(state);
     });
 
     it('follows a symlink into a child whose name starts with two dots', () => {
@@ -538,7 +538,7 @@ describe('reducer', () => {
         focusedEntryName: 'cfg',
       });
 
-      const next = reducer(state, { type: 'navigate-into-directory', name: 'cfg' });
+      const next = reducer(state, {type: 'navigate-into-directory', name: 'cfg'});
 
       expect(next.currentPath).toBe('/root/project/..config');
     });
@@ -546,18 +546,18 @@ describe('reducer', () => {
 
   describe('navigate-to-parent', () => {
     it('sets currentPath to parent directory', () => {
-      const state = makeBrowsingState([], { currentPath: '/mock/deep/path' });
+      const state = makeBrowsingState([], {currentPath: '/mock/deep/path'});
 
-      const next = reducer(state, { type: 'navigate-to-parent' });
+      const next = reducer(state, {type: 'navigate-to-parent'});
 
       expect(next.currentPath).toBe('/mock/deep');
       expect(next.mode).toBe('loading');
     });
 
     it('no-op when at filesystem root', () => {
-      const state = makeBrowsingState([], { currentPath: '/' });
+      const state = makeBrowsingState([], {currentPath: '/'});
 
-      const next = reducer(state, { type: 'navigate-to-parent' });
+      const next = reducer(state, {type: 'navigate-to-parent'});
 
       expect(next.currentPath).toBe('/');
       expect(next.mode).toBe('browsing');
@@ -570,7 +570,7 @@ describe('reducer', () => {
         selectedPaths: new Set(['/mock/deep/path/file.ts']),
       });
 
-      const next = reducer(state, { type: 'navigate-to-parent' });
+      const next = reducer(state, {type: 'navigate-to-parent'});
 
       expect(next.selectedPaths.size).toBe(0);
     });
@@ -581,7 +581,7 @@ describe('reducer', () => {
         rootPath: '/root',
       });
 
-      const next = reducer(state, { type: 'navigate-to-parent' });
+      const next = reducer(state, {type: 'navigate-to-parent'});
 
       expect(next.currentPath).toBe('/root/a');
       expect(next.mode).toBe('loading');
@@ -593,7 +593,7 @@ describe('reducer', () => {
         rootPath: '/root',
       });
 
-      const next = reducer(state, { type: 'navigate-to-parent' });
+      const next = reducer(state, {type: 'navigate-to-parent'});
 
       expect(next.currentPath).toBe('/root');
       expect(next.mode).toBe('browsing');
@@ -607,7 +607,7 @@ describe('reducer', () => {
         pathHistory: [],
       });
 
-      const next = reducer(state, { type: 'navigate-to-parent' });
+      const next = reducer(state, {type: 'navigate-to-parent'});
 
       expect(next).toBe(state);
     });
@@ -621,7 +621,7 @@ describe('reducer', () => {
         focusedEntryName: 'file.ts',
       });
 
-      const next = reducer(state, { type: 'toggle-selection' });
+      const next = reducer(state, {type: 'toggle-selection'});
 
       expect(next.selectedPaths.has('/mock/file.ts')).toBe(true);
     });
@@ -634,7 +634,7 @@ describe('reducer', () => {
         selectedPaths: new Set(['/mock/file.ts']),
       });
 
-      const next = reducer(state, { type: 'toggle-selection' });
+      const next = reducer(state, {type: 'toggle-selection'});
 
       expect(next.selectedPaths.has('/mock/file.ts')).toBe(false);
     });
@@ -646,7 +646,7 @@ describe('reducer', () => {
         focusedEntryName: 'file.ts',
       });
 
-      const next = reducer(state, { type: 'toggle-selection' });
+      const next = reducer(state, {type: 'toggle-selection'});
 
       expect(next.selectedPaths.size).toBe(0);
     });
@@ -659,7 +659,7 @@ describe('reducer', () => {
         fileTypes: 'files',
       });
 
-      const next = reducer(state, { type: 'toggle-selection' });
+      const next = reducer(state, {type: 'toggle-selection'});
 
       expect(next.selectedPaths.size).toBe(0);
     });
@@ -675,7 +675,7 @@ describe('reducer', () => {
         fileTypes: 'files',
       });
 
-      const next = reducer(state, { type: 'toggle-selection' });
+      const next = reducer(state, {type: 'toggle-selection'});
 
       expect(next.selectedPaths.has('/mock/link-to-file')).toBe(true);
     });
@@ -691,7 +691,7 @@ describe('reducer', () => {
         fileTypes: 'files',
       });
 
-      const next = reducer(state, { type: 'toggle-selection' });
+      const next = reducer(state, {type: 'toggle-selection'});
 
       expect(next.selectedPaths.size).toBe(0);
     });
@@ -707,7 +707,7 @@ describe('reducer', () => {
         fileTypes: 'directories',
       });
 
-      const next = reducer(state, { type: 'toggle-selection' });
+      const next = reducer(state, {type: 'toggle-selection'});
 
       expect(next.selectedPaths.has('/mock/link-to-dir')).toBe(true);
     });
@@ -723,7 +723,7 @@ describe('reducer', () => {
         fileTypes: 'directories',
       });
 
-      const next = reducer(state, { type: 'toggle-selection' });
+      const next = reducer(state, {type: 'toggle-selection'});
 
       expect(next.selectedPaths.size).toBe(0);
     });
@@ -733,15 +733,15 @@ describe('reducer', () => {
     it('sets mode to filtering', () => {
       const state = makeBrowsingState([makeEntry('file.ts')]);
 
-      const next = reducer(state, { type: 'start-filtering' });
+      const next = reducer(state, {type: 'start-filtering'});
 
       expect(next.mode).toBe('filtering');
     });
 
     it('clears filter text', () => {
-      const state = makeBrowsingState([makeEntry('file.ts')], { filterText: 'old' });
+      const state = makeBrowsingState([makeEntry('file.ts')], {filterText: 'old'});
 
-      const next = reducer(state, { type: 'start-filtering' });
+      const next = reducer(state, {type: 'start-filtering'});
 
       expect(next.filterText).toBe('');
     });
@@ -750,18 +750,18 @@ describe('reducer', () => {
   describe('update-filter', () => {
     it('appends character to filterText', () => {
       const entries = [makeEntry('abc.ts'), makeEntry('xyz.ts')];
-      const state = makeBrowsingState(entries, { mode: 'filtering', filterText: 'a' });
+      const state = makeBrowsingState(entries, {mode: 'filtering', filterText: 'a'});
 
-      const next = reducer(state, { type: 'update-filter', char: 'b' });
+      const next = reducer(state, {type: 'update-filter', char: 'b'});
 
       expect(next.filterText).toBe('ab');
     });
 
     it('recomputes filteredEntries with case-insensitive match', () => {
       const entries = [makeEntry('README.md'), makeEntry('index.ts'), makeEntry('src', 'directory')];
-      const state = makeBrowsingState(entries, { mode: 'filtering', filterText: '' });
+      const state = makeBrowsingState(entries, {mode: 'filtering', filterText: ''});
 
-      const next = reducer(state, { type: 'update-filter', char: 'r' });
+      const next = reducer(state, {type: 'update-filter', char: 'r'});
 
       const names = next.filteredEntries.map(e => e.name);
       expect(names).toContain('README.md');
@@ -771,15 +771,15 @@ describe('reducer', () => {
 
     it('resets focus to first matching entry', () => {
       const entries = [makeEntry('alpha.ts'), makeEntry('beta.ts'), makeEntry('gamma.ts')];
-      const state = makeBrowsingState(entries, { mode: 'filtering', filterText: '' });
+      const state = makeBrowsingState(entries, {mode: 'filtering', filterText: ''});
 
-      const next = reducer(state, { type: 'update-filter', char: 'b' });
+      const next = reducer(state, {type: 'update-filter', char: 'b'});
 
       expect(next.focusedEntryName).toBe('beta.ts');
     });
 
     it('resets visible window to top', () => {
-      const entries = Array.from({ length: 15 }, (_, i) => makeEntry(`file-${i}`));
+      const entries = Array.from({length: 15}, (_, i) => makeEntry(`file-${i}`));
       const state = makeBrowsingState(entries, {
         mode: 'filtering',
         filterText: '',
@@ -787,7 +787,7 @@ describe('reducer', () => {
         visibleToIndex: 15,
       });
 
-      const next = reducer(state, { type: 'update-filter', char: '0' });
+      const next = reducer(state, {type: 'update-filter', char: '0'});
 
       expect(next.visibleFromIndex).toBe(0);
     });
@@ -796,18 +796,18 @@ describe('reducer', () => {
   describe('delete-filter-char', () => {
     it('removes last character from filterText', () => {
       const entries = [makeEntry('abc.ts')];
-      const state = makeBrowsingState(entries, { mode: 'filtering', filterText: 'abc' });
+      const state = makeBrowsingState(entries, {mode: 'filtering', filterText: 'abc'});
 
-      const next = reducer(state, { type: 'delete-filter-char' });
+      const next = reducer(state, {type: 'delete-filter-char'});
 
       expect(next.filterText).toBe('ab');
     });
 
     it('exits filter mode when filterText becomes empty', () => {
       const entries = [makeEntry('file.ts')];
-      const state = makeBrowsingState(entries, { mode: 'filtering', filterText: 'a' });
+      const state = makeBrowsingState(entries, {mode: 'filtering', filterText: 'a'});
 
-      const next = reducer(state, { type: 'delete-filter-char' });
+      const next = reducer(state, {type: 'delete-filter-char'});
 
       expect(next.filterText).toBe('');
       expect(next.mode).toBe('browsing');
@@ -815,18 +815,18 @@ describe('reducer', () => {
 
     it('exits to browsing when filterText is already empty', () => {
       const entries = [makeEntry('file.ts')];
-      const state = makeBrowsingState(entries, { mode: 'filtering', filterText: '' });
+      const state = makeBrowsingState(entries, {mode: 'filtering', filterText: ''});
 
-      const next = reducer(state, { type: 'delete-filter-char' });
+      const next = reducer(state, {type: 'delete-filter-char'});
 
       expect(next.mode).toBe('browsing');
     });
 
     it('recomputes filteredEntries', () => {
       const entries = [makeEntry('abc.ts'), makeEntry('xyz.ts')];
-      const state = makeBrowsingState(entries, { mode: 'filtering', filterText: 'ab' });
+      const state = makeBrowsingState(entries, {mode: 'filtering', filterText: 'ab'});
 
-      const next = reducer(state, { type: 'delete-filter-char' });
+      const next = reducer(state, {type: 'delete-filter-char'});
 
       // filter is now 'a' -- abc.ts matches, xyz.ts does not
       expect(next.filteredEntries.map(e => e.name)).toContain('abc.ts');
@@ -836,18 +836,18 @@ describe('reducer', () => {
   describe('clear-filter', () => {
     it('resets filterText to empty', () => {
       const entries = [makeEntry('file.ts')];
-      const state = makeBrowsingState(entries, { mode: 'filtering', filterText: 'search' });
+      const state = makeBrowsingState(entries, {mode: 'filtering', filterText: 'search'});
 
-      const next = reducer(state, { type: 'clear-filter' });
+      const next = reducer(state, {type: 'clear-filter'});
 
       expect(next.filterText).toBe('');
     });
 
     it('sets mode to browsing', () => {
       const entries = [makeEntry('file.ts')];
-      const state = makeBrowsingState(entries, { mode: 'filtering', filterText: 'x' });
+      const state = makeBrowsingState(entries, {mode: 'filtering', filterText: 'x'});
 
-      const next = reducer(state, { type: 'clear-filter' });
+      const next = reducer(state, {type: 'clear-filter'});
 
       expect(next.mode).toBe('browsing');
     });
@@ -860,7 +860,7 @@ describe('reducer', () => {
         filteredEntries: [entries[0]!],
       });
 
-      const next = reducer(state, { type: 'clear-filter' });
+      const next = reducer(state, {type: 'clear-filter'});
 
       expect(next.filteredEntries.length).toBe(2);
     });
@@ -869,9 +869,9 @@ describe('reducer', () => {
   describe('select-focused-entry', () => {
     it('navigates into directory when focused on a directory', () => {
       const entries = [makeEntry('src', 'directory'), makeEntry('file.ts')];
-      const state = makeBrowsingState(entries, { focusedEntryName: 'src' });
+      const state = makeBrowsingState(entries, {focusedEntryName: 'src'});
 
-      const next = reducer(state, { type: 'select-focused-entry' });
+      const next = reducer(state, {type: 'select-focused-entry'});
 
       expect(next.mode).toBe('loading');
       expect(next.currentPath).toBe('/mock/src');
@@ -879,9 +879,9 @@ describe('reducer', () => {
 
     it('does not change state for files (handled in hook layer)', () => {
       const entries = [makeEntry('file.ts')];
-      const state = makeBrowsingState(entries, { focusedEntryName: 'file.ts' });
+      const state = makeBrowsingState(entries, {focusedEntryName: 'file.ts'});
 
-      const next = reducer(state, { type: 'select-focused-entry' });
+      const next = reducer(state, {type: 'select-focused-entry'});
 
       expect(next.mode).toBe('browsing');
     });
@@ -889,9 +889,9 @@ describe('reducer', () => {
 
   describe('retry', () => {
     it('sets mode to loading', () => {
-      const state = makeBrowsingState([], { mode: 'error', errorMessage: 'EACCES' });
+      const state = makeBrowsingState([], {mode: 'error', errorMessage: 'EACCES'});
 
-      const next = reducer(state, { type: 'retry' });
+      const next = reducer(state, {type: 'retry'});
 
       expect(next.mode).toBe('loading');
       expect(next.errorMessage).toBeUndefined();
@@ -910,11 +910,11 @@ describe('reducer', () => {
 
     it('re-derives filtered entries when the filter changes', () => {
       const raw = [makeEntry('alpha.ts'), makeEntry('bravo.md'), makeEntry('src', 'directory')];
-      const state = makeBrowsingState(raw, { rawEntries: raw });
+      const state = makeBrowsingState(raw, {rawEntries: raw});
 
       const next = reducer(state, {
         type: 'sync-config',
-        config: { ...baseConfig, filter: '*.ts' },
+        config: {...baseConfig, filter: '*.ts'},
       });
 
       const names = next.allEntries.map(e => e.name);
@@ -925,11 +925,11 @@ describe('reducer', () => {
 
     it('re-applies hidden filtering when showHidden changes', () => {
       const raw = [makeEntry('.env'), makeEntry('visible.ts')];
-      const state = makeBrowsingState([makeEntry('visible.ts')], { rawEntries: raw });
+      const state = makeBrowsingState([makeEntry('visible.ts')], {rawEntries: raw});
 
       const next = reducer(state, {
         type: 'sync-config',
-        config: { ...baseConfig, showHidden: true },
+        config: {...baseConfig, showHidden: true},
       });
 
       expect(next.allEntries.map(e => e.name)).toContain('.env');
@@ -937,11 +937,11 @@ describe('reducer', () => {
 
     it('updates multiSelect without touching entries', () => {
       const raw = [makeEntry('file.ts')];
-      const state = makeBrowsingState(raw, { rawEntries: raw, multiSelect: false });
+      const state = makeBrowsingState(raw, {rawEntries: raw, multiSelect: false});
 
       const next = reducer(state, {
         type: 'sync-config',
-        config: { ...baseConfig, multiSelect: true },
+        config: {...baseConfig, multiSelect: true},
       });
 
       expect(next.multiSelect).toBe(true);
@@ -949,16 +949,16 @@ describe('reducer', () => {
 
     it('returns the same state reference when nothing effectively changed', () => {
       const raw = [makeEntry('file.ts')];
-      const state = makeBrowsingState(raw, { rawEntries: raw });
+      const state = makeBrowsingState(raw, {rawEntries: raw});
 
-      const next = reducer(state, { type: 'sync-config', config: baseConfig });
+      const next = reducer(state, {type: 'sync-config', config: baseConfig});
 
       expect(next).toBe(state);
     });
 
     it('preserves focus and keeps it on-screen when the focused entry survives', () => {
       // 100 entries, window of 10 scrolled to [35, 45), focus at index 40.
-      const raw = Array.from({ length: 100 }, (_, i) => makeEntry(`file-${String(i).padStart(3, '0')}.ts`));
+      const raw = Array.from({length: 100}, (_, i) => makeEntry(`file-${String(i).padStart(3, '0')}.ts`));
       const state = makeBrowsingState(raw, {
         rawEntries: raw,
         focusedEntryName: 'file-040.ts',
@@ -969,7 +969,7 @@ describe('reducer', () => {
 
       const next = reducer(state, {
         type: 'sync-config',
-        config: { ...baseConfig, showDetails: true },
+        config: {...baseConfig, showDetails: true},
       });
 
       expect(next.focusedEntryName).toBe('file-040.ts');
@@ -981,7 +981,7 @@ describe('reducer', () => {
     });
 
     it('resets the window to the top when the focused entry disappears', () => {
-      const raw = Array.from({ length: 50 }, (_, i) => makeEntry(`file-${String(i).padStart(2, '0')}.ts`));
+      const raw = Array.from({length: 50}, (_, i) => makeEntry(`file-${String(i).padStart(2, '0')}.ts`));
       const state = makeBrowsingState(raw, {
         rawEntries: raw,
         focusedEntryName: 'file-40.ts',
@@ -993,7 +993,7 @@ describe('reducer', () => {
       // Filter down to just file-00.ts; the old focus is gone.
       const next = reducer(state, {
         type: 'sync-config',
-        config: { ...baseConfig, filter: 'file-00.ts' },
+        config: {...baseConfig, filter: 'file-00.ts'},
       });
 
       expect(next.focusedEntryName).toBe('file-00.ts');
@@ -1003,12 +1003,12 @@ describe('reducer', () => {
     it('bails (same state ref) when a new filter function is behaviorally identical', () => {
       const raw = [makeEntry('a.ts'), makeEntry('b.md')];
       const f1 = (e: FileEntry) => e.name.endsWith('.ts');
-      const state = makeBrowsingState([makeEntry('a.ts')], { rawEntries: raw, filter: f1 });
+      const state = makeBrowsingState([makeEntry('a.ts')], {rawEntries: raw, filter: f1});
 
       // A DISTINCT function instance with equivalent behavior must not produce a
       // new state object (guards against the inline-filter render loop).
       const f2 = (e: FileEntry) => e.name.endsWith('.ts');
-      const next = reducer(state, { type: 'sync-config', config: { ...baseConfig, filter: f2 } });
+      const next = reducer(state, {type: 'sync-config', config: {...baseConfig, filter: f2}});
 
       expect(next).toBe(state);
     });
@@ -1024,7 +1024,7 @@ describe('reducer', () => {
       // directories-only removes keep.ts from the list entirely.
       const next = reducer(state, {
         type: 'sync-config',
-        config: { ...baseConfig, multiSelect: true, fileTypes: 'directories' },
+        config: {...baseConfig, multiSelect: true, fileTypes: 'directories'},
       });
 
       expect(next.selectedPaths.has('/mock/keep.ts')).toBe(false);
@@ -1040,7 +1040,7 @@ describe('reducer', () => {
 
       const next = reducer(state, {
         type: 'sync-config',
-        config: { ...baseConfig, multiSelect: true, filter: '*.ts' },
+        config: {...baseConfig, multiSelect: true, filter: '*.ts'},
       });
 
       expect(next.selectedPaths.has('/mock/keep.ts')).toBe(true);
@@ -1050,9 +1050,9 @@ describe('reducer', () => {
   describe('cancel', () => {
     it('clears filter when in filtering mode', () => {
       const entries = [makeEntry('file.ts')];
-      const state = makeBrowsingState(entries, { mode: 'filtering', filterText: 'test' });
+      const state = makeBrowsingState(entries, {mode: 'filtering', filterText: 'test'});
 
-      const next = reducer(state, { type: 'cancel' });
+      const next = reducer(state, {type: 'cancel'});
 
       expect(next.mode).toBe('browsing');
       expect(next.filterText).toBe('');
@@ -1061,7 +1061,7 @@ describe('reducer', () => {
     it('does not change state when in browsing mode (handled in hook layer)', () => {
       const state = makeBrowsingState([makeEntry('file.ts')]);
 
-      const next = reducer(state, { type: 'cancel' });
+      const next = reducer(state, {type: 'cancel'});
 
       expect(next.mode).toBe('browsing');
     });
