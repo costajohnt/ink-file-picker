@@ -24,5 +24,5 @@ export function truncatePath(fullPath: string, maxLength: number): string {
     result = candidate;
   }
 
-  return result ? '...' + result : '...' + sep + (segments[segments.length - 1] ?? '');
+  return result === '' ? '...' + sep + (segments[segments.length - 1] ?? '') : '...' + result;
 }

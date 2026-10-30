@@ -34,7 +34,7 @@ npx tsx examples/demo-recording.tsx
 
 ## Project Structure
 
-```
+```text
 src/
   components/
     file-picker/     # main FilePicker component and hooks

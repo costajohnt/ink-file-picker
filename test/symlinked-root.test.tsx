@@ -8,6 +8,7 @@ import {
 } from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
+import {stripVTControlCharacters} from 'node:util';
 import React from 'react';
 import {
   describe,
@@ -23,10 +24,8 @@ import {FilePicker} from '../src/components/file-picker/file-picker.js';
 // configured rootPath itself is reached through a symlink, as on macOS where
 // /tmp and os.tmpdir() live under a symlinked /var.
 
-const ansiPattern = new RegExp(String.raw`${String.fromCodePoint(27)}\[[0-9;]*m`, 'g');
-
 function plain(frame: string | undefined): string {
-  return (frame ?? '').replaceAll(ansiPattern, '');
+  return stripVTControlCharacters(frame ?? '');
 }
 
 async function settle(turns = 10): Promise<void> {
@@ -39,11 +38,11 @@ async function settle(turns = 10): Promise<void> {
 
 async function waitForFrame(
   lastFrame: () => string | undefined,
-  matcher: (frame: string) => boolean,
+  isMatch: (frame: string) => boolean,
   timeoutMs = 3000,
 ): Promise<void> {
   const start = Date.now();
-  while (!matcher(plain(lastFrame()))) {
+  while (!isMatch(plain(lastFrame()))) {
     if (Date.now() - start >= timeoutMs) {
       throw new Error(`Frame did not match:\n${plain(lastFrame())}`);
     }
@@ -60,7 +59,8 @@ describe('rootPath reached through a symlink', () => {
   let temporary: string;
 
   beforeEach(async () => {
-    temporary = await realpath(await mkdtemp(join(tmpdir(), 'ink-file-picker-root-')));
+    const created = await mkdtemp(join(tmpdir(), 'ink-file-picker-root-'));
+    temporary = await realpath(created);
     // real/proj/sub/inside.txt, link -> real, real/proj/sublink -> link/proj/sub
     await mkdir(join(temporary, 'real', 'proj', 'sub'), {recursive: true});
     await writeFile(join(temporary, 'real', 'proj', 'sub', 'inside.txt'), 'x');

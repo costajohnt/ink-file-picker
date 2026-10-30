@@ -6,55 +6,49 @@ import base from '@costajohnt/ink-config/xo';
 const xoConfig = [
 	...base,
 	{
-		// Rules this codebase does not satisfy yet under the shared config.
-		// Burn these down by fixing the code and deleting the line.
 		rules: {
-			'@eslint-react/naming-convention-ref-name': 'off',
-			'@stylistic/brace-style': 'off',
-			'@stylistic/curly-newline': 'off',
-			'@stylistic/max-statements-per-line': 'off',
-			'@stylistic/no-mixed-operators': 'off',
-			'@stylistic/no-mixed-spaces-and-tabs': 'off',
-			'@typescript-eslint/naming-convention': 'off',
-			'@typescript-eslint/strict-boolean-expressions': 'off',
-			complexity: 'off',
-			'jsx-a11y-x/aria-props': 'off',
-			'n/prefer-global/process': 'off',
+			// Awaits in loops are deliberate: the bounded-concurrency worker in
+			// fs-operations and the sequential polling helpers in the tests.
 			'no-await-in-loop': 'off',
-			'unicorn/consistent-boolean-name': 'off',
-			'unicorn/name-replacements': 'off',
-			'unicorn/no-new-array': 'off',
-			'unicorn/no-useless-recursion': 'off',
+			// `Set#intersection()` needs Node 22; `engines.node` is >=20.
 			'unicorn/prefer-set-methods': 'off',
-			'unicorn/prefer-simple-condition-first': 'off',
-			'unicorn/prefer-ternary': 'off',
 		},
 	},
 	{
-		files: ['test/**', 'src/**/__tests__/**'],
+		files: [
+			'src/components/file-picker/use-file-picker-state.ts',
+			'src/components/file-picker/use-file-picker.ts',
+		],
 		rules: {
+			// The action reducer and the keypress handler are flat dispatch tables;
+			// splitting them would scatter one switch/if-chain across helpers.
+			complexity: 'off',
+		},
+	},
+	{
+		files: ['test/**'],
+		rules: {
+			// `Promise.withResolvers()` needs Node 22; `engines.node` is >=20.
+			'unicorn/prefer-promise-with-resolvers': 'off',
+		},
+	},
+	{
+		files: ['test/fixtures/**/package.json'],
+		rules: {
+			// Fixture data read by the fs tests, not a published package.
 			'package-json/prefer-files-field': 'off',
 			'package-json/prefer-type-module': 'off',
 			'package-json/require-engines': 'off',
 			'package-json/require-entry-point': 'off',
 			'package-json/require-fields': 'off',
-			'regexp/no-control-character': 'off',
-			'unicorn/max-nested-calls': 'off',
-			'unicorn/no-array-sort': 'off',
-			'unicorn/prefer-promise-with-resolvers': 'off',
-		},
-	},
-	{
-		files: ['**/*.md'],
-		rules: {
-			'markdown/fenced-code-language': 'off',
 		},
 	},
 	{
 		files: ['package.json'],
 		rules: {
+			// npm always publishes package.json, so the `./package.json` export is
+			// covered even though `files` lists only `dist`.
 			'package-json/prefer-files-field': 'off',
-			'package-json/prefer-side-effects-field': 'off',
 		},
 	},
 ];

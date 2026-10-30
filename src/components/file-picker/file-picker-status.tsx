@@ -20,7 +20,8 @@ function useSpinner(isActive: boolean): string {
     const timer = setInterval(() => {
       setFrame(previous => (previous + 1) % SPINNER_FRAMES.length);
     }, SPINNER_INTERVAL);
-    return () => {clearInterval(timer);
+    return () => {
+      clearInterval(timer);
     };
   }, [isActive]);
 

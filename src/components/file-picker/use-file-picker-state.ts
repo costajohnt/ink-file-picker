@@ -1,4 +1,5 @@
 import {realpathSync} from 'node:fs';
+import process from 'node:process';
 import {
   dirname,
   resolve,
@@ -96,16 +97,14 @@ export type ConfigProps = {
 // --- Helpers ---
 
 function compareEntries(a: FileEntry, b: FileEntry): number {
-  const isAIsDir = a.kind === 'directory' ||
-  	(a.kind === 'symlink' && a.symlinkTargetKind === 'directory');
-  const isBIsDir = b.kind === 'directory' ||
-  	(b.kind === 'symlink' && b.symlinkTargetKind === 'directory');
+  const isDirA = a.kind === 'directory' || (a.kind === 'symlink' && a.symlinkTargetKind === 'directory');
+  const isDirB = b.kind === 'directory' || (b.kind === 'symlink' && b.symlinkTargetKind === 'directory');
 
-  if (isAIsDir && !isBIsDir) {
+  if (isDirA && !isDirB) {
     return -1;
   }
 
-  return !isAIsDir && isBIsDir ? 1 : a.name.localeCompare(b.name, undefined, {sensitivity: 'base'});
+  return !isDirA && isDirB ? 1 : a.name.localeCompare(b.name, undefined, {sensitivity: 'base'});
 }
 
 function applyStaticFilters(
@@ -116,33 +115,32 @@ function applyStaticFilters(
 
   // 1. Hidden files
   if (!state.showHidden) {
-    result = result.filter(e => !e.isHidden);
+    result = result.filter(entry => !entry.isHidden);
   }
 
   // 2. File types
   if (state.fileTypes === 'directories') {
-    result = result.filter(e => e.kind === 'directory' ||
-    	(e.kind === 'symlink' && e.symlinkTargetKind === 'directory'));
+    result = result.filter(entry => entry.kind === 'directory' || (entry.kind === 'symlink' && entry.symlinkTargetKind === 'directory'));
   }
 
   // 3. User-provided filter
   // Directories (and symlinks-to-directories) are exempt from user filters so
   // they remain navigable, UNLESS fileTypes is 'directories' (then the filter
   // should apply to them too).
-  if (state.filter) {
+  if (state.filter !== undefined && state.filter !== '') {
     const isExemptDirs = state.fileTypes !== 'directories';
-    const isDirLike = (e: FileEntry) =>
-      e.kind === 'directory' || (e.kind === 'symlink' && e.symlinkTargetKind === 'directory');
+    const isDirLike = (entry: FileEntry) =>
+      entry.kind === 'directory' || (entry.kind === 'symlink' && entry.symlinkTargetKind === 'directory');
 
     if (typeof state.filter === 'string') {
       const isMatch = picomatch(state.filter);
-      result = result.filter(e =>
-        (isExemptDirs && isDirLike(e)) || isMatch(e.name),
+      result = result.filter(entry =>
+        (isExemptDirs && isDirLike(entry)) || isMatch(entry.name),
       );
     } else {
       const fn = state.filter;
-      result = result.filter(e =>
-        (isExemptDirs && isDirLike(e)) || fn(e),
+      result = result.filter(entry =>
+        (isExemptDirs && isDirLike(entry)) || fn(entry),
       );
     }
   }
@@ -159,7 +157,7 @@ function applyTextFilter(entries: FileEntry[], filterText: string): FileEntry[] 
   }
 
   const needle = filterText.toLowerCase();
-  return entries.filter(e => e.name.toLowerCase().includes(needle));
+  return entries.filter(entry => entry.name.toLowerCase().includes(needle));
 }
 
 /**
@@ -187,13 +185,8 @@ function isWithinSandbox(
   target: string,
   {rootPath, rootRealPath}: Pick<FilePickerState, 'rootPath' | 'rootRealPath'>,
 ): boolean {
-  if (!rootPath || isWithinRoot(target, rootPath)) {
-    return true;
-  }
-
-  return rootRealPath !== undefined &&
-  	rootRealPath !== rootPath &&
-  	isWithinRoot(target, rootRealPath);
+  const isInConfiguredRoot = rootPath === undefined || rootPath === '' || isWithinRoot(target, rootPath);
+  return isInConfiguredRoot || (rootRealPath !== undefined && rootRealPath !== rootPath && isWithinRoot(target, rootRealPath));
 }
 
 /**
@@ -210,7 +203,7 @@ function canonicalize(path: string): string {
 /**
 Shallow equality by entry identity (path), order-sensitive.
 */
-function sameEntries(a: FileEntry[], b: FileEntry[]): boolean {
+function haveSameEntries(a: FileEntry[], b: FileEntry[]): boolean {
   if (a.length !== b.length) {
     return false;
   }
@@ -226,13 +219,45 @@ function sameEntries(a: FileEntry[], b: FileEntry[]): boolean {
 
 // --- Reducer ---
 
+function navigateIntoDirectory(state: FilePickerState, name: string): FilePickerState {
+  const entry = state.entryMap.get(name);
+  if (!entry) {
+    return state;
+  }
+
+  // Allow navigating into directories or symlinks that point to directories
+  const isNavigable = entry.kind === 'directory' || (entry.kind === 'symlink' && entry.symlinkTargetKind === 'directory');
+  if (!isNavigable) {
+    return state;
+  }
+
+  const targetPath = entry.kind === 'symlink' && entry.symlinkTarget !== undefined && entry.symlinkTarget !== ''
+    ? entry.symlinkTarget
+    : entry.path;
+
+  // Sandbox: a symlink target is an absolute realpath that can point
+  // anywhere, so refuse to follow one that escapes rootPath.
+  if (!isWithinSandbox(targetPath, state)) {
+    return state;
+  }
+
+  return {
+    ...state,
+    mode: 'loading',
+    currentPath: targetPath,
+    pathHistory: [...state.pathHistory, state.currentPath],
+    filterText: '',
+    selectedPaths: new Set<string>(),
+  };
+}
+
 export function reducer(state: FilePickerState, action: FilePickerAction): FilePickerState {
   switch (action.type) {
     case 'load-directory': {
       // A fresh navigation to an explicit path (e.g. initialPath changed):
       // reset history and selection. Clamp into rootPath so a new initialPath
       // outside the sandbox cannot escape it.
-      const targetPath = state.rootPath && !isWithinSandbox(action.path, state)
+      const targetPath = state.rootPath !== undefined && state.rootPath !== '' && !isWithinSandbox(action.path, state)
         ? state.rootPath
         : action.path;
       return {
@@ -277,36 +302,7 @@ export function reducer(state: FilePickerState, action: FilePickerAction): FileP
     }
 
     case 'navigate-into-directory': {
-      const entry = state.entryMap.get(action.name);
-      if (!entry) {
-        return state;
-      }
-
-      // Allow navigating into directories or symlinks that point to directories
-      const isNavigable = entry.kind === 'directory' ||
-      	(entry.kind === 'symlink' && entry.symlinkTargetKind === 'directory');
-      if (!isNavigable) {
-        return state;
-      }
-
-      const targetPath = entry.kind === 'symlink' && entry.symlinkTarget
-        ? entry.symlinkTarget
-        : entry.path;
-
-      // Sandbox: a symlink target is an absolute realpath that can point
-      // anywhere, so refuse to follow one that escapes rootPath.
-      if (!isWithinSandbox(targetPath, state)) {
-        return state;
-      }
-
-      return {
-        ...state,
-        mode: 'loading',
-        currentPath: targetPath,
-        pathHistory: [...state.pathHistory, state.currentPath],
-        filterText: '',
-        selectedPaths: new Set<string>(),
-      };
+      return navigateIntoDirectory(state, action.name);
     }
 
     case 'navigate-to-parent': {
@@ -335,7 +331,7 @@ export function reducer(state: FilePickerState, action: FilePickerAction): FileP
     }
 
     case 'focus-next': {
-      if (!state.focusedEntryName) {
+      if (state.focusedEntryName === undefined || state.focusedEntryName === '') {
         return state;
       }
 
@@ -363,7 +359,7 @@ export function reducer(state: FilePickerState, action: FilePickerAction): FileP
     }
 
     case 'focus-previous': {
-      if (!state.focusedEntryName) {
+      if (state.focusedEntryName === undefined || state.focusedEntryName === '') {
         return state;
       }
 
@@ -421,7 +417,7 @@ export function reducer(state: FilePickerState, action: FilePickerAction): FileP
     }
 
     case 'toggle-selection': {
-      if (!state.multiSelect || !state.focusedEntryName) {
+      if (!state.multiSelect || state.focusedEntryName === undefined || state.focusedEntryName === '') {
         return state;
       }
 
@@ -431,14 +427,14 @@ export function reducer(state: FilePickerState, action: FilePickerAction): FileP
       }
 
       // Determine effective kind for symlinks
-      const effectiveKind = entry.kind === 'symlink' && entry.symlinkTargetKind
+      const effectiveKind = entry.kind === 'symlink' && entry.symlinkTargetKind !== undefined
         ? entry.symlinkTargetKind
         : entry.kind;
-      if (state.fileTypes === 'files' && effectiveKind === 'directory') {
+      if (effectiveKind === 'directory' && state.fileTypes === 'files') {
         return state;
       }
 
-      if (state.fileTypes === 'directories' && effectiveKind === 'file') {
+      if (effectiveKind === 'file' && state.fileTypes === 'directories') {
         return state;
       }
 
@@ -453,7 +449,7 @@ export function reducer(state: FilePickerState, action: FilePickerAction): FileP
     }
 
     case 'select-focused-entry': {
-      if (!state.focusedEntryName) {
+      if (state.focusedEntryName === undefined || state.focusedEntryName === '') {
         return state;
       }
 
@@ -462,15 +458,10 @@ export function reducer(state: FilePickerState, action: FilePickerAction): FileP
         return state;
       }
 
-      const isNavigable = entry.kind === 'directory' ||
-      	(entry.kind === 'symlink' && entry.symlinkTargetKind === 'directory');
-
-      if (isNavigable) {
-        return reducer(state, {type: 'navigate-into-directory', name: entry.name});
-      }
+      const isNavigable = entry.kind === 'directory' || (entry.kind === 'symlink' && entry.symlinkTargetKind === 'directory');
 
       // For files: handled in the hook layer (calls onSelect)
-      return state;
+      return isNavigable ? navigateIntoDirectory(state, entry.name) : state;
     }
 
     case 'start-filtering': {
@@ -480,7 +471,7 @@ export function reducer(state: FilePickerState, action: FilePickerAction): FileP
     case 'update-filter': {
       const newFilter = state.filterText + action.char;
       const filtered = state.allEntries.filter(
-        e => e.name.toLowerCase().includes(newFilter.toLowerCase()),
+        entry => entry.name.toLowerCase().includes(newFilter.toLowerCase()),
       );
       const entryMap = new EntryMap(filtered);
       const visibleTo = Math.min(filtered.length, state.visibleEntryCount);
@@ -506,7 +497,7 @@ export function reducer(state: FilePickerState, action: FilePickerAction): FileP
       const filtered = newFilter.length === 0
         ? state.allEntries
         : state.allEntries.filter(
-          e => e.name.toLowerCase().includes(newFilter.toLowerCase()),
+          entry => entry.name.toLowerCase().includes(newFilter.toLowerCase()),
         );
       const entryMap = new EntryMap(filtered);
       const visibleTo = Math.min(filtered.length, state.visibleEntryCount);
@@ -569,14 +560,14 @@ export function reducer(state: FilePickerState, action: FilePickerAction): FileP
       // bails out and we avoid a render loop.
       if (
         isScalarsUnchanged &&
-        sameEntries(state.allEntries, allEntries) &&
-        sameEntries(state.filteredEntries, filteredEntries)
+        haveSameEntries(state.allEntries, allEntries) &&
+        haveSameEntries(state.filteredEntries, filteredEntries)
       ) {
         return state;
       }
 
       const entryMap = new EntryMap(filteredEntries);
-      const focusedIndex = filteredEntries.findIndex(e => e.name === state.focusedEntryName);
+      const focusedIndex = filteredEntries.findIndex(entry => entry.name === state.focusedEntryName);
       const isFocusSurvives = focusedIndex !== -1;
       const focusedEntryName = isFocusSurvives ? state.focusedEntryName : entryMap.first?.name;
 
@@ -602,7 +593,7 @@ export function reducer(state: FilePickerState, action: FilePickerAction): FileP
       // narrowing does not prune because it does not affect allEntries.
       let {selectedPaths} = state;
       if (selectedPaths.size > 0) {
-        const visiblePaths = new Set(allEntries.map(e => e.path));
+        const visiblePaths = new Set(allEntries.map(entry => entry.path));
         const kept = [...selectedPaths].filter(p => visiblePaths.has(p));
         if (kept.length !== selectedPaths.size) {
           selectedPaths = new Set(kept);
@@ -646,11 +637,11 @@ type InitArgs = {
 };
 
 function createInitialState(args: InitArgs): FilePickerState {
-  const rootPath = args.rootPath ? resolve(args.rootPath) : undefined;
-  const rootRealPath = rootPath ? canonicalize(rootPath) : undefined;
+  const rootPath = args.rootPath === undefined || args.rootPath === '' ? undefined : resolve(args.rootPath);
+  const rootRealPath = rootPath === undefined || rootPath === '' ? undefined : canonicalize(rootPath);
   // Clamp the starting path into the sandbox: an initialPath outside rootPath
   // falls back to rootPath itself.
-  const currentPath = rootPath && !isWithinSandbox(args.initialPath, {rootPath, rootRealPath})
+  const currentPath = rootPath !== undefined && rootPath !== '' && !isWithinSandbox(args.initialPath, {rootPath, rootRealPath})
     ? rootPath
     : args.initialPath;
 
@@ -681,6 +672,7 @@ function createInitialState(args: InitArgs): FilePickerState {
 
 // --- State API ---
 
+// eslint-disable-next-line @typescript-eslint/naming-convention -- published type name; renaming would break consumers.
 export type FilePickerStateAPI = {
   mode: FilePickerMode;
   currentPath: string;
@@ -750,54 +742,73 @@ export function useFilePickerState(props: FilePickerProps): FilePickerStateAPI {
 
   // Navigate to a new initialPath when it changes (but not on first mount --
   // createInitialState already seeded currentPath from it).
-  const didMount = useRef(false);
+  const didMountRef = useRef(false);
   useEffect(() => {
-    if (!didMount.current) {
-      didMount.current = true;
+    if (!didMountRef.current) {
+      didMountRef.current = true;
       return;
     }
 
     dispatch({type: 'load-directory', path: initialPath});
   }, [initialPath]);
 
-  const focusNext = useCallback(() => {dispatch({type: 'focus-next'});
+  const focusNext = useCallback(() => {
+    dispatch({type: 'focus-next'});
   }, []);
-  const focusPrevious = useCallback(() => {dispatch({type: 'focus-previous'});
+  const focusPrevious = useCallback(() => {
+    dispatch({type: 'focus-previous'});
   }, []);
-  const focusFirst = useCallback(() => {dispatch({type: 'focus-first'});
+  const focusFirst = useCallback(() => {
+    dispatch({type: 'focus-first'});
   }, []);
-  const focusLast = useCallback(() => {dispatch({type: 'focus-last'});
+  const focusLast = useCallback(() => {
+    dispatch({type: 'focus-last'});
   }, []);
-  const navigateToParent = useCallback(() => {dispatch({type: 'navigate-to-parent'});
+  const navigateToParent = useCallback(() => {
+    dispatch({type: 'navigate-to-parent'});
   }, []);
   const navigateInto = useCallback(
-    (name: string) => {dispatch({type: 'navigate-into-directory', name});
+    (name: string) => {
+      dispatch({type: 'navigate-into-directory', name});
     },
     [],
   );
-  const selectFocusedEntry = useCallback(() => {dispatch({type: 'select-focused-entry'});
+  const selectFocusedEntry = useCallback(() => {
+    dispatch({type: 'select-focused-entry'});
   }, []);
-  const toggleSelection = useCallback(() => {dispatch({type: 'toggle-selection'});
+  const toggleSelection = useCallback(() => {
+    dispatch({type: 'toggle-selection'});
   }, []);
-  const startFiltering = useCallback(() => {dispatch({type: 'start-filtering'});
+  const startFiltering = useCallback(() => {
+    dispatch({type: 'start-filtering'});
   }, []);
   const updateFilter = useCallback(
-    (char: string) => {dispatch({type: 'update-filter', char});
+    (char: string) => {
+      dispatch({type: 'update-filter', char});
     },
     [],
   );
-  const deleteFilterChar = useCallback(() => {dispatch({type: 'delete-filter-char'});
+  const deleteFilterChar = useCallback(() => {
+    dispatch({type: 'delete-filter-char'});
   }, []);
-  const clearFilter = useCallback(() => {dispatch({type: 'clear-filter'});
+  const clearFilter = useCallback(() => {
+    dispatch({type: 'clear-filter'});
   }, []);
-  const cancel = useCallback(() => {dispatch({type: 'cancel'});
+  const cancel = useCallback(() => {
+    dispatch({type: 'cancel'});
   }, []);
-  const retry = useCallback(() => {dispatch({type: 'retry'});
+  const retry = useCallback(() => {
+    dispatch({type: 'retry'});
   }, []);
 
   const visibleEntries = useMemo(() => state.filteredEntries.slice(state.visibleFromIndex, state.visibleToIndex), [state.filteredEntries, state.visibleFromIndex, state.visibleToIndex]);
 
-  const getFocusedEntry = useCallback((): FileEntry | undefined => state.focusedEntryName ? state.entryMap.get(state.focusedEntryName) : undefined, [state.entryMap, state.focusedEntryName]);
+  const getFocusedEntry = useCallback(
+    (): FileEntry | undefined => state.focusedEntryName === undefined || state.focusedEntryName === ''
+      ? undefined
+      : state.entryMap.get(state.focusedEntryName),
+    [state.entryMap, state.focusedEntryName],
+  );
 
   return {
     mode: state.mode,
