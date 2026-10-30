@@ -1,4 +1,3 @@
-import React from 'react';
 import { Box, Text } from 'ink';
 import { basename } from 'node:path';
 import { formatSize } from '../../lib/format-size.js';
