@@ -25,7 +25,7 @@ A filesystem navigation and file selection component for [Ink](https://github.co
 
 ## Install
 
-```
+```sh
 npm install ink-file-picker
 ```
 

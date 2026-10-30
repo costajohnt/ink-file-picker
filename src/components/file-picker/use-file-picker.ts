@@ -86,8 +86,7 @@ export function useFilePicker({
       if (key.rightArrow) {
         const focused = state.getFocusedEntry();
         if (focused) {
-          const isNavigable = focused.kind === 'directory' ||
-          	(focused.kind === 'symlink' && focused.symlinkTargetKind === 'directory');
+          const isNavigable = focused.kind === 'directory' || (focused.kind === 'symlink' && focused.symlinkTargetKind === 'directory');
           if (isNavigable) {
             state.navigateInto(focused.name);
           }
@@ -103,8 +102,7 @@ export function useFilePicker({
           return;
         }
 
-        const isNavigable = focused.kind === 'directory' ||
-        	(focused.kind === 'symlink' && focused.symlinkTargetKind === 'directory');
+        const isNavigable = focused.kind === 'directory' || (focused.kind === 'symlink' && focused.symlinkTargetKind === 'directory');
 
         if (isNavigable) {
           state.navigateInto(focused.name);
@@ -140,20 +138,20 @@ export function useFilePicker({
       }
 
       // Typing: Filter characters
-      if (state.mode === 'filtering' && input && !key.ctrl && !key.meta) {
+      if (input !== '' && state.mode === 'filtering' && !key.ctrl && !key.meta) {
         state.updateFilter(input);
         return;
       }
 
       // Typing: Auto-enter filter mode on printable chars
-      if (state.mode === 'browsing' && input && !key.ctrl && !key.meta) {
+      if (input !== '' && state.mode === 'browsing' && !key.ctrl && !key.meta) {
         state.startFiltering();
         state.updateFilter(input);
         return;
       }
 
       // Error mode: 'r' to retry
-      if (state.mode === 'error' && input === 'r') {
+      if (input === 'r' && state.mode === 'error') {
         state.retry();
       }
     },

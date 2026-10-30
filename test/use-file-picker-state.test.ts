@@ -134,7 +134,7 @@ describe('reducer', () => {
       const next = reducer(state, {type: 'load-directory-success', entries});
 
       // Directories always kept; only *.ts files pass
-      const names = next.allEntries.map(e => e.name);
+      const names = next.allEntries.map(entry => entry.name);
       expect(names).toContain('src');
       expect(names).toContain('index.ts');
       expect(names).not.toContain('style.css');
@@ -152,7 +152,7 @@ describe('reducer', () => {
 
       const next = reducer(state, {type: 'load-directory-success', entries});
 
-      const names = next.allEntries.map(e => e.name);
+      const names = next.allEntries.map(entry => entry.name);
       expect(names).toContain('src');
       expect(names).toContain('index.ts');
       expect(names).not.toContain('style.css');
@@ -169,7 +169,7 @@ describe('reducer', () => {
 
       const next = reducer(state, {type: 'load-directory-success', entries});
 
-      const names = next.allEntries.map(e => e.name);
+      const names = next.allEntries.map(entry => entry.name);
       expect(names).toContain('src');
       expect(names).toContain('scripts');
       expect(names).not.toContain('dist');
@@ -189,7 +189,7 @@ describe('reducer', () => {
 
       const next = reducer(state, {type: 'load-directory-success', entries});
 
-      const names = next.allEntries.map(e => e.name);
+      const names = next.allEntries.map(entry => entry.name);
       expect(names).toContain('src');
       expect(names).not.toContain('dist');
       expect(names).not.toContain('index.ts');
@@ -763,7 +763,7 @@ describe('reducer', () => {
 
       const next = reducer(state, {type: 'update-filter', char: 'r'});
 
-      const names = next.filteredEntries.map(e => e.name);
+      const names = next.filteredEntries.map(entry => entry.name);
       expect(names).toContain('README.md');
       expect(names).toContain('src');
       expect(names).not.toContain('index.ts');
@@ -829,7 +829,7 @@ describe('reducer', () => {
       const next = reducer(state, {type: 'delete-filter-char'});
 
       // filter is now 'a' -- abc.ts matches, xyz.ts does not
-      expect(next.filteredEntries.map(e => e.name)).toContain('abc.ts');
+      expect(next.filteredEntries.map(entry => entry.name)).toContain('abc.ts');
     });
   });
 
@@ -917,7 +917,7 @@ describe('reducer', () => {
         config: {...baseConfig, filter: '*.ts'},
       });
 
-      const names = next.allEntries.map(e => e.name);
+      const names = next.allEntries.map(entry => entry.name);
       expect(names).toContain('alpha.ts');
       expect(names).toContain('src'); // directories stay navigable
       expect(names).not.toContain('bravo.md');
@@ -932,7 +932,7 @@ describe('reducer', () => {
         config: {...baseConfig, showHidden: true},
       });
 
-      expect(next.allEntries.map(e => e.name)).toContain('.env');
+      expect(next.allEntries.map(entry => entry.name)).toContain('.env');
     });
 
     it('updates multiSelect without touching entries', () => {
@@ -974,7 +974,7 @@ describe('reducer', () => {
 
       expect(next.focusedEntryName).toBe('file-040.ts');
       // The focused index must stay within the visible window, not be stranded.
-      const focusedIndex = next.filteredEntries.findIndex(e => e.name === next.focusedEntryName);
+      const focusedIndex = next.filteredEntries.findIndex(entry => entry.name === next.focusedEntryName);
       expect(focusedIndex).toBeGreaterThanOrEqual(next.visibleFromIndex);
       expect(focusedIndex).toBeLessThan(next.visibleToIndex);
       expect(next.visibleToIndex - next.visibleFromIndex).toBeLessThanOrEqual(10);
@@ -1002,13 +1002,13 @@ describe('reducer', () => {
 
     it('bails (same state ref) when a new filter function is behaviorally identical', () => {
       const raw = [makeEntry('a.ts'), makeEntry('b.md')];
-      const f1 = (e: FileEntry) => e.name.endsWith('.ts');
-      const state = makeBrowsingState([makeEntry('a.ts')], {rawEntries: raw, filter: f1});
+      const isTsFile = (entry: FileEntry) => entry.name.endsWith('.ts');
+      const state = makeBrowsingState([makeEntry('a.ts')], {rawEntries: raw, filter: isTsFile});
 
       // A DISTINCT function instance with equivalent behavior must not produce a
       // new state object (guards against the inline-filter render loop).
-      const f2 = (e: FileEntry) => e.name.endsWith('.ts');
-      const next = reducer(state, {type: 'sync-config', config: {...baseConfig, filter: f2}});
+      const isTsFileToo = (entry: FileEntry) => entry.name.endsWith('.ts');
+      const next = reducer(state, {type: 'sync-config', config: {...baseConfig, filter: isTsFileToo}});
 
       expect(next).toBe(state);
     });

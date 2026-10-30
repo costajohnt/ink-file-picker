@@ -72,7 +72,7 @@ export function FilePickerEntry({
         </Text>
       )}
 
-      {entry.kind === 'symlink' && entry.symlinkTarget && (
+      {entry.kind === 'symlink' && entry.symlinkTarget !== undefined && entry.symlinkTarget !== '' && (
         <Text dimColor>
           {' '}{config.symlinkIndicator} {basename(entry.symlinkTarget)}
         </Text>

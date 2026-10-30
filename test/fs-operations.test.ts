@@ -22,7 +22,7 @@ describe('readDirectory', () => {
   it('reads directory entries with correct names and paths', async () => {
     const entries = await readDirectory(FIXTURES_DIR);
 
-    const names = entries.map(e => e.name).sort();
+    const names = entries.map(entry => entry.name).toSorted();
     expect(names).toContain('src');
     expect(names).toContain('package.json');
     expect(names).toContain('README.md');
@@ -31,42 +31,42 @@ describe('readDirectory', () => {
   it('identifies files vs directories', async () => {
     const entries = await readDirectory(FIXTURES_DIR);
 
-    const src = entries.find(e => e.name === 'src');
+    const src = entries.find(entry => entry.name === 'src');
     expect(src?.kind).toBe('directory');
 
-    const pkg = entries.find(e => e.name === 'package.json');
+    const pkg = entries.find(entry => entry.name === 'package.json');
     expect(pkg?.kind).toBe('file');
   });
 
   it('populates size for files', async () => {
     const entries = await readDirectory(FIXTURES_DIR);
 
-    const pkg = entries.find(e => e.name === 'package.json');
+    const pkg = entries.find(entry => entry.name === 'package.json');
     expect(pkg?.size).toBeGreaterThan(0);
   });
 
   it('populates modifiedAt for files', async () => {
     const entries = await readDirectory(FIXTURES_DIR);
 
-    const pkg = entries.find(e => e.name === 'package.json');
+    const pkg = entries.find(entry => entry.name === 'package.json');
     expect(pkg?.modifiedAt).toBeGreaterThan(0);
   });
 
   it('detects hidden files', async () => {
     const entries = await readDirectory(FIXTURES_DIR);
 
-    const hidden = entries.find(e => e.name === '.hidden-file');
+    const hidden = entries.find(entry => entry.name === '.hidden-file');
     expect(hidden).toBeDefined();
     expect(hidden?.isHidden).toBe(true);
 
-    const pkg = entries.find(e => e.name === 'package.json');
+    const pkg = entries.find(entry => entry.name === 'package.json');
     expect(pkg?.isHidden).toBe(false);
   });
 
   it('sets correct absolute paths', async () => {
     const entries = await readDirectory(FIXTURES_DIR);
 
-    const pkg = entries.find(e => e.name === 'package.json');
+    const pkg = entries.find(entry => entry.name === 'package.json');
     expect(pkg?.path).toBe(join(FIXTURES_DIR, 'package.json'));
   });
 
@@ -103,7 +103,7 @@ describe('readDirectory with many symlinks (bounded concurrency)', () => {
 
   it('resolves every symlink target without dropping entries', async () => {
     const entries = await readDirectory(temporary);
-    const links = entries.filter(e => e.name.startsWith('link-'));
+    const links = entries.filter(entry => entry.name.startsWith('link-'));
     expect(links.length).toBe(linkCount);
 
     for (const link of links) {
@@ -111,15 +111,15 @@ describe('readDirectory with many symlinks (bounded concurrency)', () => {
       expect(link.symlinkTargetKind).toBeDefined();
     }
 
-    const dirLink = entries.find(e => e.name === 'link-00');
+    const dirLink = entries.find(entry => entry.name === 'link-00');
     expect(dirLink?.symlinkTargetKind).toBe('directory');
-    const fileLink = entries.find(e => e.name === 'link-01');
+    const fileLink = entries.find(entry => entry.name === 'link-01');
     expect(fileLink?.symlinkTargetKind).toBe('file');
   });
 
   it('marks a broken symlink with undefined target fields', async () => {
     const entries = await readDirectory(temporary);
-    const broken = entries.find(e => e.name === 'broken-link');
+    const broken = entries.find(entry => entry.name === 'broken-link');
     expect(broken?.kind).toBe('symlink');
     expect(broken?.symlinkTarget).toBeUndefined();
     expect(broken?.symlinkTargetKind).toBeUndefined();

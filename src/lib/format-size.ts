@@ -13,7 +13,7 @@ export function formatSize(bytes: number): string {
     Math.floor(Math.log(bytes) / Math.log(1024)),
     UNITS.length - 1,
   );
-  const value = bytes / 1024 ** exponent;
+  const value = bytes / (1024 ** exponent);
   const unit = UNITS[exponent]!;
 
   return exponent === 0

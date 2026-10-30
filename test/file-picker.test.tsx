@@ -1,3 +1,4 @@
+import {stripVTControlCharacters} from 'node:util';
 import React from 'react';
 import {
   describe,
@@ -39,10 +40,8 @@ const defaultEntries: FileEntry[] = [
 ];
 
 // Strip ANSI colour codes so content checks hold under FORCE_COLOR.
-const ansiPattern = new RegExp(String.raw`${String.fromCodePoint(27)}\[[0-9;]*m`, 'g');
-
 function stripAnsi(frame: string | undefined): string {
-  return (frame ?? '').replaceAll(ansiPattern, '');
+  return stripVTControlCharacters(frame ?? '');
 }
 
 /**
@@ -77,16 +76,16 @@ async function waitFor(assertion: () => void, timeoutMs = 5000): Promise<void> {
 }
 
 /**
-Poll until the (ANSI-stripped) frame satisfies `matcher`.
+Poll until the (ANSI-stripped) frame satisfies `isMatch`.
 */
 async function waitForFrame(
   lastFrame: () => string | undefined,
-  matcher: (plainFrame: string) => boolean,
+  isMatch: (plainFrame: string) => boolean,
   timeoutMs = 2000,
 ): Promise<void> {
   await waitFor(() => {
     const plain = stripAnsi(lastFrame());
-    if (!matcher(plain)) {
+    if (!isMatch(plain)) {
       throw new Error(`Frame did not match:\n${plain}`);
     }
   }, timeoutMs);
@@ -216,7 +215,8 @@ describe('FilePicker', () => {
 
       // Arrow down moves focus to the second entry (frame re-renders)
       await frameChange(lastFrame, () => {
-        stdin.write('\u{1B}[B');});
+        stdin.write('\u{1B}[B');
+      });
 
       expect(lastFrame()).toBeDefined();
     });
@@ -230,9 +230,11 @@ describe('FilePicker', () => {
 
       // Go down then up
       await frameChange(lastFrame, () => {
-        stdin.write('\u{1B}[B');});
+        stdin.write('\u{1B}[B');
+      });
       await frameChange(lastFrame, () => {
-        stdin.write('\u{1B}[A');});
+        stdin.write('\u{1B}[A');
+      });
 
       expect(lastFrame()).toBeDefined();
     });
@@ -277,7 +279,8 @@ describe('FilePicker', () => {
 
       // Should call readDirectory again
       await waitFor(() => {
-        expect(mockReadDirectory).toHaveBeenCalledTimes(2);});
+        expect(mockReadDirectory).toHaveBeenCalledTimes(2);
+      });
     });
 
     it('goes to parent on Backspace', async () => {
@@ -296,7 +299,8 @@ describe('FilePicker', () => {
       stdin.write('\u{7F}');
 
       await waitFor(() => {
-        expect(mockReadDirectory).toHaveBeenCalledTimes(2);});
+        expect(mockReadDirectory).toHaveBeenCalledTimes(2);
+      });
     });
   });
 
@@ -316,7 +320,8 @@ describe('FilePicker', () => {
       stdin.write('\r');
 
       await waitFor(() => {
-        expect(onSelect).toHaveBeenCalledWith(['/mock/file.ts']);});
+        expect(onSelect).toHaveBeenCalledWith(['/mock/file.ts']);
+      });
     });
 
     it('does not call onSelect when Enter on directory (navigates instead)', async () => {
@@ -332,7 +337,8 @@ describe('FilePicker', () => {
       // First entry is a directory; Enter navigates (second readDirectory call)
       stdin.write('\r');
       await waitFor(() => {
-        expect(mockReadDirectory).toHaveBeenCalledTimes(2);});
+        expect(mockReadDirectory).toHaveBeenCalledTimes(2);
+      });
 
       expect(onSelect).not.toHaveBeenCalled();
     });
@@ -372,13 +378,15 @@ describe('FilePicker', () => {
       stdin.write(' ');
       await waitForFrame(lastFrame, frame => frame.includes('[x]'));
       await frameChange(lastFrame, () => {
-        stdin.write('\u{1B}[B');});
+        stdin.write('\u{1B}[B');
+      });
       stdin.write(' ');
       await waitForFrame(lastFrame, frame => (frame.match(/\[x\]/g) ?? []).length === 2);
       stdin.write('\r');
 
       await waitFor(() => {
-        expect(onSelect).toHaveBeenCalledWith(['/mock/file1.ts', '/mock/file2.ts']);});
+        expect(onSelect).toHaveBeenCalledWith(['/mock/file1.ts', '/mock/file2.ts']);
+      });
     });
   });
 
@@ -405,13 +413,17 @@ describe('FilePicker', () => {
       // Type 'pack' to filter, waiting for each char to render (the handler
       // reads filter mode from its render closure)
       await frameChange(lastFrame, () => {
-        stdin.write('p');});
+        stdin.write('p');
+      });
       await frameChange(lastFrame, () => {
-        stdin.write('a');});
+        stdin.write('a');
+      });
       await frameChange(lastFrame, () => {
-        stdin.write('c');});
+        stdin.write('c');
+      });
       await frameChange(lastFrame, () => {
-        stdin.write('k');});
+        stdin.write('k');
+      });
 
       await waitForFrame(lastFrame, frame =>
         frame.includes('package.json') && !frame.includes('README.md'));
@@ -428,7 +440,8 @@ describe('FilePicker', () => {
       stdin.write('/');
       await waitForFrame(lastFrame, frame => frame.includes('clear filter'));
       await frameChange(lastFrame, () => {
-        stdin.write('x');});
+        stdin.write('x');
+      });
 
       // Escape clears filter; back to browsing with all entries visible
       stdin.write('\u{1B}');
@@ -466,7 +479,8 @@ describe('FilePicker', () => {
       stdin.write('\u{1B}');
 
       await waitFor(() => {
-        expect(onCancel).toHaveBeenCalled();});
+        expect(onCancel).toHaveBeenCalled();
+      });
     });
 
     it('clears filter (not cancel) on Escape in filter mode', async () => {
@@ -525,13 +539,15 @@ describe('FilePicker', () => {
       // Enter first directory (node_modules, alphabetically first)
       stdin.write('\r');
       await waitFor(() => {
-        expect(mockReadDirectory).toHaveBeenCalledTimes(2);});
+        expect(mockReadDirectory).toHaveBeenCalledTimes(2);
+      });
       await waitForFrame(lastFrame, frame => frame.includes('index.ts'));
 
       // Backspace: allowed, we are below root
       stdin.write('\u{7F}');
       await waitFor(() => {
-        expect(mockReadDirectory).toHaveBeenCalledTimes(3);});
+        expect(mockReadDirectory).toHaveBeenCalledTimes(3);
+      });
       await waitForFrame(lastFrame, frame => frame.includes('node_modules'));
 
       // Backspace again: now at root, no-op
@@ -702,7 +718,8 @@ describe('FilePicker', () => {
 
       // The very first read is the clamped root, never the out-of-root path.
       await waitFor(() => {
-        expect(mockReadDirectory).toHaveBeenCalledWith('/mock');});
+        expect(mockReadDirectory).toHaveBeenCalledWith('/mock');
+      });
       expect(mockReadDirectory).not.toHaveBeenCalledWith('/etc/somewhere');
     });
 

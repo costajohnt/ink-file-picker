@@ -96,9 +96,9 @@ export function FilePicker(props: FilePickerProps) {
             ? (
               <Box aria-role="listitem">
                 <Text {...styles.emptyDirectory()}>
-                  {state.filterText
-                    ? 'No matches'
-                    : 'Empty directory'}
+                  {state.filterText === ''
+                    ? 'Empty directory'
+                    : 'No matches'}
                 </Text>
               </Box>
             )

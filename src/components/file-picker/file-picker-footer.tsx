@@ -37,7 +37,7 @@ export function FilePickerFooter({
     <Box {...styles.footer()} aria-role="toolbar">
       {hints.map(({key, action}, i) => (
         <Box key={i} marginRight={1}>
-          {key ? <Text {...styles.footerKey()}>[{key}]</Text> : null}
+          {key === '' ? null : <Text {...styles.footerKey()}>[{key}]</Text>}
           <Text {...styles.footerDescription()}> {action}</Text>
         </Box>
       ))}
