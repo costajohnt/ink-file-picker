@@ -1,7 +1,7 @@
-import { Box, Text } from 'ink';
-import { basename } from 'node:path';
-import { formatSize } from '../../lib/format-size.js';
-import type { FileEntry, FilePickerThemeStyles, FilePickerTheme } from '../../types.js';
+import {basename} from 'node:path';
+import {Box, Text} from 'ink';
+import {formatSize} from '../../lib/format-size.js';
+import type {FileEntry, FilePickerThemeStyles, FilePickerTheme} from '../../types.js';
 
 type FilePickerEntryProps = {
   entry: FileEntry;
@@ -26,9 +26,9 @@ export function FilePickerEntry({
 }: FilePickerEntryProps) {
   const icon = entry.kind === 'directory'
     ? config.directoryIcon
-    : entry.kind === 'symlink'
-    ? config.symlinkIcon
-    : config.fileIcon;
+    : (entry.kind === 'symlink'
+      ? config.symlinkIcon
+      : config.fileIcon);
 
   const displayName = entry.kind === 'directory'
     ? entry.name + config.directoryTrail
@@ -36,15 +36,17 @@ export function FilePickerEntry({
 
   return (
     <Box
-      {...styles.entryRow({ isFocused })}
+      {...styles.entryRow({isFocused})}
       aria-role="listitem"
-      aria-state={{ selected: isSelected || isFocused }}
+      aria-state={{selected: isSelected || isFocused}}
     >
-      {isFocused ? (
-        <Text {...styles.focusIndicator()} aria-hidden>{'>'}</Text>
-      ) : (
-        <Text aria-hidden> </Text>
-      )}
+      {isFocused
+        ? (
+          <Text {...styles.focusIndicator()} aria-hidden>{'>'}</Text>
+        )
+        : (
+          <Text aria-hidden> </Text>
+        )}
 
       {multiSelect && (
         <Box aria-role="checkbox" aria-state={{checked: isSelected}}>
@@ -54,10 +56,10 @@ export function FilePickerEntry({
         </Box>
       )}
 
-      <Text {...styles.entryIcon({ kind: entry.kind })} aria-hidden>{icon}</Text>
+      <Text {...styles.entryIcon({kind: entry.kind})} aria-hidden>{icon}</Text>
 
       <Text
-        {...styles.entryName({ isFocused, isSelected, kind: entry.kind })}
+        {...styles.entryName({isFocused, isSelected, kind: entry.kind})}
         wrap="truncate"
         aria-label={isScreenReaderEnabled ? `${entry.name}, ${entry.kind}` : undefined}
       >

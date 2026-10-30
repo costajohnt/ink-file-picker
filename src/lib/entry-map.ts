@@ -1,4 +1,4 @@
-import type { FileEntry } from '../types.js';
+import type {FileEntry} from '../types.js';
 
 export type EntryMapItem = FileEntry & {
   index: number;
@@ -15,8 +15,8 @@ export class EntryMap extends Map<string, EntryMapItem> {
     let previous: EntryMapItem | undefined;
     let firstItem: EntryMapItem | undefined;
 
-    for (let index = 0; index < entries.length; index++) {
-      const entry = entries[index]!;
+    for (const [index, entry_] of entries.entries()) {
+      const entry = entry_!;
       const item: EntryMapItem = {
         ...entry,
         index,

@@ -1,6 +1,6 @@
-import { useInput } from 'ink';
-import type { FilePickerStateAPI } from './use-file-picker-state.js';
-import type { OnSelectCallback, OnCancelCallback } from '../../types.js';
+import {useInput} from 'ink';
+import type {OnSelectCallback, OnCancelCallback} from '../../types.js';
+import type {FilePickerStateAPI} from './use-file-picker-state.js';
 
 type UseFilePickerProps = {
   isDisabled?: boolean;
@@ -10,16 +10,14 @@ type UseFilePickerProps = {
 };
 
 function isSelectableEntry(
-  entry: { kind: string; symlinkTargetKind?: string },
+  entry: {kind: string; symlinkTargetKind?: string},
   fileTypes: string,
 ): boolean {
   if (fileTypes === 'files') {
     return entry.kind === 'file' || (entry.kind === 'symlink' && entry.symlinkTargetKind === 'file');
   }
-  if (fileTypes === 'directories') {
-    return entry.kind === 'directory' || (entry.kind === 'symlink' && entry.symlinkTargetKind === 'directory');
-  }
-  return true;
+
+  return fileTypes === 'directories' ? entry.kind === 'directory' || (entry.kind === 'symlink' && entry.symlinkTargetKind === 'directory') : true;
 }
 
 export function useFilePicker({
@@ -35,6 +33,7 @@ export function useFilePicker({
         state.focusFirst();
         return;
       }
+
       if (key.end) {
         state.focusLast();
         return;
@@ -49,6 +48,7 @@ export function useFilePicker({
         } else {
           onCancel?.();
         }
+
         return;
       }
 
@@ -57,6 +57,7 @@ export function useFilePicker({
         state.focusPrevious();
         return;
       }
+
       if (key.downArrow) {
         state.focusNext();
         return;
@@ -69,6 +70,7 @@ export function useFilePicker({
         } else {
           state.navigateToParent();
         }
+
         return;
       }
 
@@ -76,6 +78,7 @@ export function useFilePicker({
         if (state.mode !== 'filtering') {
           state.navigateToParent();
         }
+
         return;
       }
 
@@ -84,21 +87,24 @@ export function useFilePicker({
         const focused = state.getFocusedEntry();
         if (focused) {
           const isNavigable = focused.kind === 'directory' ||
-            (focused.kind === 'symlink' && focused.symlinkTargetKind === 'directory');
+          	(focused.kind === 'symlink' && focused.symlinkTargetKind === 'directory');
           if (isNavigable) {
             state.navigateInto(focused.name);
           }
         }
+
         return;
       }
 
       // Enter: Select / Open / Submit
       if (key.return) {
         const focused = state.getFocusedEntry();
-        if (!focused) return;
+        if (!focused) {
+          return;
+        }
 
         const isNavigable = focused.kind === 'directory' ||
-          (focused.kind === 'symlink' && focused.symlinkTargetKind === 'directory');
+        	(focused.kind === 'symlink' && focused.symlinkTargetKind === 'directory');
 
         if (isNavigable) {
           state.navigateInto(focused.name);
@@ -106,26 +112,24 @@ export function useFilePicker({
         }
 
         if (state.multiSelect) {
-          const paths = Array.from(state.selectedPaths);
+          const paths = [...state.selectedPaths];
           if (paths.length === 0 && isSelectableEntry(focused, state.fileTypes)) {
             onSelect?.([focused.path]);
           } else if (paths.length > 0) {
             onSelect?.(paths);
           }
-        } else {
-          if (isSelectableEntry(focused, state.fileTypes)) {
-            onSelect?.([focused.path]);
-          }
+        } else if (isSelectableEntry(focused, state.fileTypes)) {
+          onSelect?.([focused.path]);
         }
+
         return;
       }
 
       // Space: Toggle selection in multi-select browsing, otherwise treat as filter char
-      if (input === ' ') {
-        if (state.multiSelect && state.mode === 'browsing') {
-          state.toggleSelection();
-          return;
-        }
+      if (input === ' ' && state.multiSelect && state.mode === 'browsing') {
+        state.toggleSelection();
+        return;
+        
         // Fall through to filter handling below so spaces can appear in filter text
       }
 
@@ -151,9 +155,8 @@ export function useFilePicker({
       // Error mode: 'r' to retry
       if (state.mode === 'error' && input === 'r') {
         state.retry();
-        return;
       }
     },
-    { isActive: !isDisabled && state.mode !== 'loading' },
+    {isActive: !isDisabled && state.mode !== 'loading'},
   );
 }

@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
-import { formatSize } from '../src/lib/format-size.js';
+import {describe, it, expect} from 'vitest';
+import {formatSize} from '../src/lib/format-size.js';
 
 describe('formatSize', () => {
   it('formats 0 bytes', () => {
@@ -19,12 +19,12 @@ describe('formatSize', () => {
   });
 
   it('formats megabytes', () => {
-    expect(formatSize(1048576)).toBe('1.0 MB');
-    expect(formatSize(5242880)).toBe('5.0 MB');
+    expect(formatSize(1_048_576)).toBe('1.0 MB');
+    expect(formatSize(5_242_880)).toBe('5.0 MB');
   });
 
   it('formats gigabytes', () => {
-    expect(formatSize(1073741824)).toBe('1.0 GB');
+    expect(formatSize(1_073_741_824)).toBe('1.0 GB');
   });
 
   it('treats negative bytes as 0 B', () => {

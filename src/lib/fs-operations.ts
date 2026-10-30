@@ -1,19 +1,23 @@
-import { readdir, stat, realpath } from 'node:fs/promises';
-import { join, resolve } from 'node:path';
-import type { FileEntry, EntryKind } from '../types.js';
+import {readdir, stat, realpath} from 'node:fs/promises';
+import {join, resolve} from 'node:path';
+import type {FileEntry, EntryKind} from '../types.js';
 
 export type ReadDirectoryOptions = {
-  /** Whether to follow symlinks and resolve their targets */
+  /**
+  Whether to follow symlinks and resolve their targets
+  */
   followSymlinks?: boolean;
 };
 
-/** Max number of directory entries stat'd/realpath'd at once. */
+/**
+Max number of directory entries stat'd/realpath'd at once.
+*/
 const STAT_CONCURRENCY = 10;
 
 /**
- * Map over items with a bounded number of in-flight promises, preserving order.
- * Prevents a directory full of symlinks on a slow mount from firing thousands
- * of concurrent realpath+stat calls at once.
+ Map over items with a bounded number of in-flight promises, preserving order.
+ Prevents a directory full of symlinks on a slow mount from firing thousands
+ of concurrent realpath+stat calls at once.
  */
 async function mapWithConcurrency<T, R>(
   items: readonly T[],
@@ -31,22 +35,22 @@ async function mapWithConcurrency<T, R>(
   }
 
   const workerCount = Math.min(limit, items.length);
-  await Promise.all(Array.from({ length: workerCount }, worker));
+  await Promise.all(Array.from({length: workerCount}, worker));
   return results;
 }
 
 /**
- * Read a directory and return enriched FileEntry objects.
- * Uses fs.readdir with { withFileTypes: true } for efficiency.
+ Read a directory and return enriched FileEntry objects.
+ Uses fs.readdir with { withFileTypes: true } for efficiency.
  */
 export async function readDirectory(
   dirPath: string,
   options: ReadDirectoryOptions = {},
 ): Promise<FileEntry[]> {
-  const { followSymlinks = true } = options;
+  const {followSymlinks = true} = options;
   const resolvedPath = resolve(dirPath);
 
-  const dirents = await readdir(resolvedPath, { withFileTypes: true });
+  const dirents = await readdir(resolvedPath, {withFileTypes: true});
 
   const entries: FileEntry[] = await mapWithConcurrency(
     dirents,

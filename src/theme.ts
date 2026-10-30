@@ -1,6 +1,6 @@
-import type { BoxProps, TextProps } from 'ink';
+import type {BoxProps, TextProps} from 'ink';
 import figures from 'figures';
-import type { FilePickerTheme } from './types.js';
+import type {FilePickerTheme} from './types.js';
 
 const theme: FilePickerTheme = {
   styles: {
@@ -20,21 +20,29 @@ const theme: FilePickerTheme = {
     separator: (): TextProps => ({
       dimColor: true,
     }),
-    entryRow: ({ isFocused }): BoxProps => ({
+    entryRow: ({isFocused}): BoxProps => ({
       flexDirection: 'row',
       gap: 1,
       paddingLeft: isFocused ? 0 : 2,
     }),
-    entryIcon: ({ kind }): TextProps => ({
-      color: kind === 'directory' ? 'cyan'
-           : kind === 'symlink' ? 'magenta'
-           : undefined,
+    entryIcon: ({kind}): TextProps => ({
+      color: kind === 'directory'
+        ? 'cyan'
+        : (kind === 'symlink'
+          ? 'magenta'
+          : undefined),
     }),
-    entryName: ({ isFocused, isSelected, kind }): TextProps => {
+    entryName({isFocused, isSelected, kind}): TextProps {
       let color: string | undefined;
-      if (isSelected) color = 'green';
-      if (isFocused) color = kind === 'directory' ? 'cyan' : 'blue';
-      return { color, bold: isFocused };
+      if (isSelected) {
+        color = 'green';
+      }
+
+      if (isFocused) {
+        color = kind === 'directory' ? 'cyan' : 'blue';
+      }
+
+      return {color, bold: isFocused};
     },
     entryDetails: (): TextProps => ({
       dimColor: true,
@@ -71,9 +79,9 @@ const theme: FilePickerTheme = {
     directoryIcon: figures.pointerSmall,
     fileIcon: ' ',
     symlinkIcon: figures.arrowRight,
-    separatorChar: '\u2500',
+    separatorChar: '\u{2500}',
     directoryTrail: '/',
-    symlinkIndicator: '\u2192',
+    symlinkIndicator: '\u{2192}',
   },
 };
 
