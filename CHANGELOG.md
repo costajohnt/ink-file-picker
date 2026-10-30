@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.0.0](https://github.com/costajohnt/ink-file-picker/compare/v0.3.4...v1.0.0) (2026-10-30)
+
+
+### ⚠ BREAKING CHANGES
+
+* requires Node.js 22 or later.
+
+### Features
+
+* require Node.js 22 ([#18](https://github.com/costajohnt/ink-file-picker/issues/18)) ([adb331e](https://github.com/costajohnt/ink-file-picker/commit/adb331e9e2cc08704436882f84043f90b5445121))
+
 ## [0.3.4](https://github.com/costajohnt/ink-file-picker/compare/v0.3.3...v0.3.4) (2026-10-10)
 
 
