@@ -9,6 +9,7 @@ import {
 } from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
+import process from 'node:process';
 import {stripVTControlCharacters} from 'node:util';
 import React from 'react';
 import {
@@ -59,7 +60,8 @@ describe('back navigation after entering the current directory', () => {
   let temporary: string;
 
   beforeEach(async () => {
-    temporary = await realpath(await mkdtemp(join(tmpdir(), 'ink-file-picker-back-')));
+    const created = await mkdtemp(join(tmpdir(), 'ink-file-picker-back-'));
+    temporary = await realpath(created);
     await writeFile(join(temporary, 'marker.txt'), 'x');
   });
 
