@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.0.1](https://github.com/costajohnt/ink-file-picker/compare/v1.0.0...v1.0.1) (2026-11-08)
+
+
+### Bug Fixes
+
+* keep Back working after entering the current directory ([#22](https://github.com/costajohnt/ink-file-picker/issues/22)) ([7e48825](https://github.com/costajohnt/ink-file-picker/commit/7e4882548952a57dccbd1071adf90509fbcae25a))
+
 ## [1.0.0](https://github.com/costajohnt/ink-file-picker/compare/v0.3.4...v1.0.0) (2026-10-30)
 
 
