@@ -241,6 +241,12 @@ function navigateIntoDirectory(state: FilePickerState, name: string): FilePicker
     return state;
   }
 
+  // A self-symlink (dir/self -> .) or Enter on the failed dir in error mode
+  // targets the current dir; pushing it would leave Back stuck on it.
+  if (targetPath === state.currentPath) {
+    return state;
+  }
+
   return {
     ...state,
     mode: 'loading',
@@ -309,6 +315,12 @@ export function reducer(state: FilePickerState, action: FilePickerAction): FileP
       // Pop from the back-stack if available (fixes symlink back-navigation),
       // otherwise fall back to dirname.
       const history = [...state.pathHistory];
+      // Skip entries equal to currentPath: popping one is a no-op that would
+      // otherwise never be committed, so Back would be stuck forever.
+      while (history.length > 0 && history.at(-1) === state.currentPath) {
+        history.pop();
+      }
+
       const popped = history.pop();
       const targetPath = popped ?? dirname(state.currentPath);
       if (targetPath === state.currentPath) {
@@ -324,7 +336,7 @@ export function reducer(state: FilePickerState, action: FilePickerAction): FileP
         ...state,
         mode: 'loading',
         currentPath: targetPath,
-        pathHistory: popped === undefined ? state.pathHistory : history,
+        pathHistory: history,
         filterText: '',
         selectedPaths: new Set<string>(),
       };

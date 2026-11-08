@@ -419,6 +419,27 @@ describe('reducer', () => {
       expect(next.currentPath).toBe('/mock/src');
     });
 
+    it('does not push history when the target is the current directory', () => {
+      // Self-symlink (self -> .): realpath target equals currentPath.
+      const self = makeEntry('self', 'symlink', {symlinkTarget: '/mock', symlinkTargetKind: 'directory'});
+      const state = makeBrowsingState([self]);
+
+      const next = reducer(state, {type: 'navigate-into-directory', name: 'self'});
+
+      expect(next).toBe(state);
+    });
+
+    it('does not push history on Enter of the failed dir in error mode', () => {
+      // load-directory-error keeps the parent listing, so the failed dir is
+      // still focused while currentPath already points at it.
+      const locked = makeEntry('locked', 'directory');
+      const state = makeBrowsingState([locked], {mode: 'error', currentPath: '/mock/locked', pathHistory: ['/mock']});
+
+      const next = reducer(state, {type: 'navigate-into-directory', name: 'locked'});
+
+      expect(next).toBe(state);
+    });
+
     it('pushes old path onto pathHistory', () => {
       const entries = [makeEntry('src', 'directory')];
       const state = makeBrowsingState(entries, {currentPath: '/mock'});
@@ -597,6 +618,31 @@ describe('reducer', () => {
 
       expect(next.currentPath).toBe('/root');
       expect(next.mode).toBe('browsing');
+    });
+
+    it('skips history entries equal to currentPath instead of getting stuck', () => {
+      const state = makeBrowsingState([], {
+        currentPath: '/mock/a',
+        pathHistory: ['/mock', '/mock/a', '/mock/a'],
+      });
+
+      const next = reducer(state, {type: 'navigate-to-parent'});
+
+      expect(next.currentPath).toBe('/mock');
+      expect(next.pathHistory).toEqual([]);
+    });
+
+    it('falls back to dirname when history holds only currentPath', () => {
+      const state = makeBrowsingState([], {
+        mode: 'error',
+        currentPath: '/mock/a',
+        pathHistory: ['/mock/a'],
+      });
+
+      const next = reducer(state, {type: 'navigate-to-parent'});
+
+      expect(next.currentPath).toBe('/mock');
+      expect(next.pathHistory).toEqual([]);
     });
 
     it('does not consume pathHistory when blocked at rootPath', () => {
